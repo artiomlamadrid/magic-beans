@@ -1,0 +1,17 @@
+<!-- templates/apology.html -->
+
+{% extends "layout.html" %}
+
+{% block title %}
+    Apology
+{% endblock %}
+
+{% block main %}
+  <div class="alert alert-danger" role="alert">
+    <h2>Oops!</h2>
+    <p>{{ top|string|replace('-', ' ') }}</p>
+    {% if bottom %}
+      <small>{{ bottom|string|replace('-', ' ') }}</small>
+    {% endif %}
+  </div>
+{% endblock %}

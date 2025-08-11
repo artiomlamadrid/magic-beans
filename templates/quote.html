@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+
+{% block title %}Quote{% endblock %}
+
+{% block main %}
+  <h1>Stock Quote</h1>
+
+  <form method="post" action="/quote" class="mb-4">
+    <input class="form-control w-auto d-inline" name="ticker" placeholder="Ticker" autofocus
+           {% if stock %} value="{{ stock.ticker }}" {% endif %} required>
+
+    <select name="data_type" class="form-select w-auto d-inline">
+      <option value="info" {% if selected_data_type == "info" %}selected{% endif %}>Basic Info</option>
+      <option value="history" {% if selected_data_type == "history" %}selected{% endif %}>History</option>
+      <option value="dividends" {% if selected_data_type == "dividends" %}selected{% endif %}>Dividends</option>
+      <option value="splits" {% if selected_data_type == "splits" %}selected{% endif %}>Splits</option>
+    </select>
+
+    <button class="btn btn-primary" type="submit" name="action" value="fetch_data">Fetch</button>
+    <button class="btn btn-success" type="submit" name="action" value="save_data"
+      {% if not session.fetched or not session.fetched.get(selected_data_type) %} disabled {% endif %}>
+      Save
+    </button>
+    <button class="btn btn-secondary" type="submit" name="action" value="load_data">Load</button>
+  </form>
+
+  {% if message %}
+    <div class="alert alert-info">{{ message }}</div>
+  {% endif %}
+
+  {% if data %}
+    {% if selected_data_type == "info" %}
+      <table class="table table-bordered">
+        <tr><th>Field</th><th>Value</th></tr>
+        <tr><td>Ticker</td><td>{{ stock.ticker }}</td></tr>
+        <tr><td>Name</td><td>{{ data.get("longName", "N/A") }}</td></tr>
+        <tr><td>Price</td><td>{{ data.get("regularMarketPrice", "N/A") }}</td></tr>
+        <tr><td>50 Day Average</td><td>{{ data.get("fiftyDayAverage", "N/A") }}</td></tr>
+        <tr><td>200 Day Average</td><td>{{ data.get("twoHundredDayAverage", "N/A") }}</td></tr>
+        <tr><td>Forward P/E</td><td>{{ data.get("forwardPE", "N/A") }}</td></tr>
+      </table>
+    {% else %}
+      <h3>{{ selected_data_type.capitalize() }}</h3>
+      <pre>{{ data.to_dict() if data.__class__.__name__ == "DataFrame" else data | tojson(indent=2) }}</pre>
+    {% endif %}
+  {% endif %}
+{% endblock %}

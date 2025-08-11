@@ -1,0 +1,46 @@
+/* Size for brand */
+nav .navbar-brand
+{
+    font-size: xx-large;
+}
+
+/* Colors for brand */
+nav .navbar-brand .blue
+{
+    color: #537fbe;
+}
+nav .navbar-brand .red
+{
+    color: #ea433b;
+}
+nav .navbar-brand .yellow
+{
+    color: #f5b82e;
+}
+nav .navbar-brand .green
+{
+    color: #2e944b;
+}
+
+/* Styling för centrering och utseende av tabell */
+.center-table {
+    margin: 30px auto;      /* Centrerar tabellen horisontellt */
+    border-collapse: collapse;
+    width: 60%;             /* Justera bredd efter behov */
+    font-family: Arial, sans-serif;
+}
+
+.center-table th, .center-table td {
+    border: 1px solid #ccc;
+    padding: 10px 15px;
+    text-align: left;
+}
+
+.center-table th {
+    background-color: #537fbe; /* Samma blå som .blue-klassen i navbar */
+    color: white;
+}
+
+.center-table tr:nth-child(even) {
+    background-color: #f2f2f2;
+}
