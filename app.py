@@ -6,7 +6,7 @@ from flask import Flask, flash, redirect, render_template, request, session
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from stock import Stock
-from helpers import apology, login_required, lookup, usd
+from helpers import apology, login_required, usd
 import sqlite3, os, json
 
 # Configure application
@@ -37,12 +37,59 @@ def after_request(response):
 @app.route("/")
 @login_required
 def index():
-    """Show portfolio of stocks"""
-
-    user_id = session["user_id"]
-    
     return render_template("index.html")
 
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """
+    Log in a user using their email and password.
+    """
+    # Forget any existing session
+    session.clear()
+
+    if request.method == "POST":
+        email = request.form.get("email")
+        password = request.form.get("password")
+
+        # Ensure email was submitted
+        if not email:
+            flash("Must provide email")
+            return render_template("login.html")
+
+        # Ensure password was submitted
+        if not password:
+            flash("Must provide password")
+            return render_template("login.html")
+
+        # Query database for the user by email
+        rows = db.execute(
+            "SELECT * FROM users WHERE email = ?",
+            email
+        )
+
+        # Check if user exists and password is correct
+        if len(rows) != 1 or not check_password_hash(rows[0]["hash"], password):
+            flash("Invalid email or password")
+            return render_template("login.html")
+
+        # Remember the user_id in session
+        session["user_id"] = rows[0]["user_id"]
+
+        # Redirect to home page
+        return redirect("/")
+
+    # GET request – show login form
+    return render_template("login.html")
+
+@app.route("/logout")
+def logout():
+    """
+    Log out the current user by clearing the session.
+    """
+    session.clear()
+    flash("You have been logged out.")
+    return redirect("/login")
 
 @app.route("/quote", methods=["GET", "POST"])
 def quote():
