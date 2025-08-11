@@ -165,6 +165,16 @@ class Stock():
         finally:
             conn.close()
 
+    def dividends_as_dicts(self):
+        if not hasattr(self, "dividends") or self.dividends is None:
+            return []
+        return [{"Date": str(date), "Dividends": float(value)} for date, value in self.dividends.items()]
+
+    def splits_as_dicts(self):
+        if not hasattr(self, "splits") or self.splits is None:
+            return []
+        return [{"Date": str(date), "Stock Splits": float(value)} for date, value in self.splits.items()]
+
 def main():
     symbol = "AAPL"
     stock = Stock(symbol)

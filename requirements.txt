@@ -6,3 +6,8 @@ requests
 yfinance
 pytest
 Werkzeug
+matplotlib
+pandas
+pytest-mock
+pytest-cov
+pytest-asyncio

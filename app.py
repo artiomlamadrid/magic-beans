@@ -7,7 +7,10 @@ from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from stock import Stock
 from helpers import apology, login_required, usd
-import sqlite3, os, json
+import os, json, io, base64
+import pandas as pd
+import matplotlib.pyplot as plt
+
 
 # Configure application
 app = Flask(__name__)
@@ -94,9 +97,9 @@ def logout():
 @app.route("/quote", methods=["GET", "POST"])
 def quote():
     stock = None
-    data_type = "info"  # default data type
+    data_type = "info"  # default
     fetched_data = None
-    message = None
+    plot_img = None
 
     if request.method == "POST":
         ticker = request.form.get("ticker", "").upper().strip()
@@ -112,7 +115,7 @@ def quote():
         if action == "fetch_data":
             if data_type == "info":
                 data = stock.fetch_data()
-                stock.data = data  # save to object
+                stock.data = data
                 fetched_data = data
 
             elif data_type == "history":
@@ -123,12 +126,18 @@ def quote():
             elif data_type == "dividends":
                 data = stock.fetch_dividends()
                 stock.dividends = data
-                fetched_data = data.to_dict() if data is not None else None
+                if data is not None:
+                    fetched_data = [{"Date": str(date.date()), "Dividends": float(val)} for date, val in data.items()]
+                else:
+                    fetched_data = None
 
             elif data_type == "splits":
                 data = stock.fetch_splits()
                 stock.splits = data
-                fetched_data = data.to_dict() if data is not None else None
+                if data is not None:
+                    fetched_data = [{"Date": str(date.date()), "Stock Splits": float(val)} for date, val in data.items()]
+                else:
+                    fetched_data = None
 
             if fetched_data:
                 flash(f"Successfully fetched {data_type} data for {ticker}.", "success")
@@ -138,9 +147,6 @@ def quote():
                 session.modified = True
             else:
                 flash(f"No {data_type} data found for {ticker}.", "warning")
-
-            if data_type == "info" and data:
-                stock.data = data
 
         elif action == "save_data":
             if data_type == "info":
@@ -191,7 +197,7 @@ def quote():
 
                 elif data_type == "history":
                     filepath = os.path.join(folder, "history.csv")
-                    df = pd.read_csv(filepath)
+                    df = pd.read_csv(filepath, parse_dates=["Date"])
                     stock.history = df
                     fetched_data = df.to_dict(orient="records")
                     flash("Loaded history data from file.", "success")
@@ -214,7 +220,6 @@ def quote():
                 flash(f"Failed to load {data_type} data from file: {e}", "danger")
 
         elif action == "view_data":
-            # New: view button reads saved file & sends to template (no session change)
             base_folder = "stocks"
             folder = os.path.join(base_folder, ticker)
 
@@ -226,13 +231,30 @@ def quote():
                     stock.data = loaded
                     fetched_data = loaded
                     flash(f"Viewing saved info data for {ticker}.", "info")
+                    plot_img = None
 
                 elif data_type == "history":
                     filepath = os.path.join(folder, "history.csv")
-                    df = pd.read_csv(filepath)
+                    df = pd.read_csv(filepath, parse_dates=["Date"])
                     stock.history = df
                     fetched_data = df.to_dict(orient="records")
                     flash(f"Viewing saved history data for {ticker}.", "info")
+
+                    # Plot close price chart
+                    fig, ax = plt.subplots(figsize=(10, 5))
+                    ax.plot(df["Date"], df["Close"], label="Close Price")
+                    ax.set_title(f"{ticker} Close Price History")
+                    ax.set_xlabel("Date")
+                    ax.set_ylabel("Price")
+                    ax.legend()
+                    fig.autofmt_xdate()
+
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format="png")
+                    plt.close(fig)
+                    buf.seek(0)
+                    img_bytes = buf.read()
+                    plot_img = base64.b64encode(img_bytes).decode("utf-8")
 
                 elif data_type == "dividends":
                     filepath = os.path.join(folder, "dividends.csv")
@@ -240,6 +262,7 @@ def quote():
                     stock.dividends = df
                     fetched_data = df.to_dict()
                     flash(f"Viewing saved dividends data for {ticker}.", "info")
+                    plot_img = None
 
                 elif data_type == "splits":
                     filepath = os.path.join(folder, "splits.csv")
@@ -247,19 +270,18 @@ def quote():
                     stock.splits = df
                     fetched_data = df.to_dict()
                     flash(f"Viewing saved splits data for {ticker}.", "info")
+                    plot_img = None
 
             except Exception as e:
                 flash(f"Failed to view {data_type} data: {e}", "danger")
-
-        # Send data to template
-        message = f"Showing {data_type} data for {ticker}"
+                plot_img = None
 
         return render_template(
             "quote.html",
             stock={"ticker": ticker},
             selected_data_type=data_type,
             data=fetched_data,
-            message=message
+            plot_img=plot_img
         )
 
     # GET request
