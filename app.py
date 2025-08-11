@@ -231,7 +231,6 @@ def quote():
                     stock.data = loaded
                     fetched_data = loaded
                     flash(f"Viewing saved info data for {ticker}.", "info")
-                    plot_img = None
 
                 elif data_type == "history":
                     filepath = os.path.join(folder, "history.csv")
@@ -240,29 +239,12 @@ def quote():
                     fetched_data = df.to_dict(orient="records")
                     flash(f"Viewing saved history data for {ticker}.", "info")
 
-                    # Plot close price chart
-                    fig, ax = plt.subplots(figsize=(10, 5))
-                    ax.plot(df["Date"], df["Close"], label="Close Price")
-                    ax.set_title(f"{ticker} Close Price History")
-                    ax.set_xlabel("Date")
-                    ax.set_ylabel("Price")
-                    ax.legend()
-                    fig.autofmt_xdate()
-
-                    buf = io.BytesIO()
-                    plt.savefig(buf, format="png")
-                    plt.close(fig)
-                    buf.seek(0)
-                    img_bytes = buf.read()
-                    plot_img = base64.b64encode(img_bytes).decode("utf-8")
-
                 elif data_type == "dividends":
                     filepath = os.path.join(folder, "dividends.csv")
                     df = pd.read_csv(filepath)
                     stock.dividends = df
                     fetched_data = df.to_dict()
                     flash(f"Viewing saved dividends data for {ticker}.", "info")
-                    plot_img = None
 
                 elif data_type == "splits":
                     filepath = os.path.join(folder, "splits.csv")
@@ -270,18 +252,15 @@ def quote():
                     stock.splits = df
                     fetched_data = df.to_dict()
                     flash(f"Viewing saved splits data for {ticker}.", "info")
-                    plot_img = None
 
             except Exception as e:
                 flash(f"Failed to view {data_type} data: {e}", "danger")
-                plot_img = None
 
         return render_template(
             "quote.html",
             stock={"ticker": ticker},
             selected_data_type=data_type,
-            data=fetched_data,
-            plot_img=plot_img
+            data=fetched_data
         )
 
     # GET request

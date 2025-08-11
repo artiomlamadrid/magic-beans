@@ -133,10 +133,7 @@
         <p>No data available.</p>
       {% endif %}
 
-      {% if selected_data_type == "history" and plot_img %}
-        <h4>History Price Chart</h4>
-        <img src="data:image/png;base64,{{ plot_img }}" alt="History Price Chart" class="img-fluid mb-3" />
-      {% endif %}
+      
     {% else %}
       <pre>{{ data | tojson(indent=2) }}</pre>
     {% endif %}
