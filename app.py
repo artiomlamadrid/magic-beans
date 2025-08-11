@@ -96,6 +96,7 @@ def quote():
     stock = None
     data_type = "info"  # default data type
     fetched_data = None
+    message = None
 
     if request.method == "POST":
         ticker = request.form.get("ticker", "").upper().strip()
@@ -104,15 +105,14 @@ def quote():
 
         if not ticker:
             flash("Please enter a ticker symbol.", "warning")
-            return redirect(url_for("quote"))
+            return redirect("/quote")
 
         stock = Stock(ticker)
 
-        # Fetcha data beroende på valt data_type
         if action == "fetch_data":
             if data_type == "info":
                 data = stock.fetch_data()
-                stock.data = data  # spara i objektet
+                stock.data = data  # save to object
                 fetched_data = data
 
             elif data_type == "history":
@@ -132,7 +132,6 @@ def quote():
 
             if fetched_data:
                 flash(f"Successfully fetched {data_type} data for {ticker}.", "success")
-                # Spara i session för save/load knappar
                 if "fetched" not in session:
                     session["fetched"] = {}
                 session["fetched"][data_type] = True
@@ -140,12 +139,10 @@ def quote():
             else:
                 flash(f"No {data_type} data found for {ticker}.", "warning")
 
-            # Spara basic info oavsett (för visning i tabell)
             if data_type == "info" and data:
                 stock.data = data
 
         elif action == "save_data":
-            # Spara datan till filer och/eller DB beroende på data_type
             if data_type == "info":
                 stock.data = stock.fetch_data()
                 if stock.data:
@@ -180,7 +177,6 @@ def quote():
                     flash("No splits data to save.", "warning")
 
         elif action == "load_data":
-            # Ladda data från filer (för demo: läs fil från stocks/<ticker>/<fil>)
             base_folder = "stocks"
             folder = os.path.join(base_folder, ticker)
 
@@ -217,14 +213,54 @@ def quote():
             except Exception as e:
                 flash(f"Failed to load {data_type} data from file: {e}", "danger")
 
-        # Skicka med data för visning i template
-        stock_info = {
-            "ticker": ticker,
-            "message": f"Showing {data_type} data for {ticker}",
-            "data_type": data_type,
-            "data": fetched_data
-        }
-        return render_template("quote.html", stock=stock_info, selected_data_type=data_type)
+        elif action == "view_data":
+            # New: view button reads saved file & sends to template (no session change)
+            base_folder = "stocks"
+            folder = os.path.join(base_folder, ticker)
+
+            try:
+                if data_type == "info":
+                    filepath = os.path.join(folder, "info.json")
+                    with open(filepath, "r") as f:
+                        loaded = json.load(f)
+                    stock.data = loaded
+                    fetched_data = loaded
+                    flash(f"Viewing saved info data for {ticker}.", "info")
+
+                elif data_type == "history":
+                    filepath = os.path.join(folder, "history.csv")
+                    df = pd.read_csv(filepath)
+                    stock.history = df
+                    fetched_data = df.to_dict(orient="records")
+                    flash(f"Viewing saved history data for {ticker}.", "info")
+
+                elif data_type == "dividends":
+                    filepath = os.path.join(folder, "dividends.csv")
+                    df = pd.read_csv(filepath)
+                    stock.dividends = df
+                    fetched_data = df.to_dict()
+                    flash(f"Viewing saved dividends data for {ticker}.", "info")
+
+                elif data_type == "splits":
+                    filepath = os.path.join(folder, "splits.csv")
+                    df = pd.read_csv(filepath)
+                    stock.splits = df
+                    fetched_data = df.to_dict()
+                    flash(f"Viewing saved splits data for {ticker}.", "info")
+
+            except Exception as e:
+                flash(f"Failed to view {data_type} data: {e}", "danger")
+
+        # Send data to template
+        message = f"Showing {data_type} data for {ticker}"
+
+        return render_template(
+            "quote.html",
+            stock={"ticker": ticker},
+            selected_data_type=data_type,
+            data=fetched_data,
+            message=message
+        )
 
     # GET request
     return render_template("quote.html", stock=None, selected_data_type=data_type)
