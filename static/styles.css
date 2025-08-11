@@ -1,32 +1,27 @@
 /* Size for brand */
-nav .navbar-brand
-{
+nav .navbar-brand {
     font-size: xx-large;
 }
 
 /* Colors for brand */
-nav .navbar-brand .blue
-{
+nav .navbar-brand .blue {
     color: #537fbe;
 }
-nav .navbar-brand .red
-{
+nav .navbar-brand .red {
     color: #ea433b;
 }
-nav .navbar-brand .yellow
-{
+nav .navbar-brand .yellow {
     color: #f5b82e;
 }
-nav .navbar-brand .green
-{
+nav .navbar-brand .green {
     color: #2e944b;
 }
 
-/* Styling för centrering och utseende av tabell */
+/* Styling for centrering och appearance of tables */
 .center-table {
-    margin: 30px auto;      /* Centrerar tabellen horisontellt */
+    margin: 30px auto;
     border-collapse: collapse;
-    width: 60%;             /* Justera bredd efter behov */
+    width: 60%;
     font-family: Arial, sans-serif;
 }
 
@@ -37,10 +32,49 @@ nav .navbar-brand .green
 }
 
 .center-table th {
-    background-color: #537fbe; /* Samma blå som .blue-klassen i navbar */
+    background-color: #537fbe;
     color: white;
 }
 
 .center-table tr:nth-child(even) {
     background-color: #f2f2f2;
+}
+
+/* Centering for header */
+.center-header {
+    margin: 30px auto;
+    text-align: center;
+    width: 100%;
+    font-family: Arial, sans-serif;
+}
+
+/* Centering for form (ticker, dropdown) */
+.center-form {
+    margin: 0 auto;
+    width: 260px; /* Fits ticker (100px), gap (10px), dropdown (150px) */
+    font-family: Arial, sans-serif;
+}
+
+/* Centering for buttons */
+.center-buttons {
+    margin: 0 auto;
+    width: 260px; /* Matches form width */
+    font-family: Arial, sans-serif;
+}
+
+/* Centering for alerts */
+.center-alert {
+    margin: 0 auto;
+    width: 350px; /* Wider for readability */
+    font-family: Arial, sans-serif;
+}
+
+/* Shared styling for form fields (input, select) */
+.form-field {
+    height: 38px;
+    font-size: 0.875rem; /* Matches typical dropdown text size */
+    padding: 0.375rem 0.75rem;
+    line-height: 1.5;
+    border: 1px solid #ced4da; /* Bootstrap-like border */
+    border-radius: 0.25rem; /* Bootstrap-like border radius */
 }

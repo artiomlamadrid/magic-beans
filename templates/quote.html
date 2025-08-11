@@ -3,38 +3,51 @@
 {% block title %}Quote{% endblock %}
 
 {% block main %}
-  <h1>Stock Quote</h1>
+  <h1 class="center-header">Yahoo Finance API interface</h1>
 
-  <form method="post" action="/quote" class="mb-4">
-    <input class="form-control w-auto d-inline" name="ticker" placeholder="Ticker" autofocus
-           {% if stock %} value="{{ stock.ticker }}" {% endif %} required>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="center-alert">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
 
-    <select name="data_type" class="form-select w-auto d-inline">
-      <option value="info" {% if selected_data_type == "info" %}selected{% endif %}>Basic Info</option>
-      <option value="history" {% if selected_data_type == "history" %}selected{% endif %}>History</option>
-      <option value="dividends" {% if selected_data_type == "dividends" %}selected{% endif %}>Dividends</option>
-      <option value="splits" {% if selected_data_type == "splits" %}selected{% endif %}>Splits</option>
-    </select>
-
-    <button class="btn btn-primary" type="submit" name="action" value="fetch_data">Fetch</button>
-    <button class="btn btn-success" type="submit" name="action" value="save_data"
-      {% if not session.fetched or not session.fetched.get(selected_data_type) %} disabled {% endif %}>
-      Save
-    </button>
-    <button class="btn btn-secondary" type="submit" name="action" value="load_data">Load</button>
-    <button class="btn btn-info" type="submit" name="action" value="view_data"
-      {% if not stock %} disabled {% endif %}>
-      View
-    </button>
+  <form method="post" action="/quote" class="mb-4 center-form">
+    <div class="d-flex gap-2 mb-3">
+      <input class="form-field" name="ticker" placeholder="Ticker" autofocus
+             {% if stock %} value="{{ stock.ticker }}" {% endif %} required
+             style="width: 100px; max-width: 100px; margin-right: 10px;">
+      <select class="form-field" name="data_type" style="width: 150px; max-width: 150px;">
+        <option value="info" {% if selected_data_type == "info" %}selected{% endif %}>Basic Info</option>
+        <option value="history" {% if selected_data_type == "history" %}selected{% endif %}>History</option>
+        <option value="dividends" {% if selected_data_type == "dividends" %}selected{% endif %}>Dividends</option>
+        <option value="splits" {% if selected_data_type == "splits" %}selected{% endif %}>Splits</option>
+        <option value="analysis" {% if selected_data_type == "analysis" %}selected{% endif %}>Recommendations</option>
+        <option value="earnings" {% if selected_data_type == "earnings" %}selected{% endif %}>Earnings Dates</option>
+        <option value="institutional_holders" {% if selected_data_type == "institutional_holders" %}selected{% endif %}>Institutional Holders</option>
+        <option value="major_holders" {% if selected_data_type == "major_holders" %}selected{% endif %}>Major Holders</option>
+        <option value="options" {% if selected_data_type == "options" %}selected{% endif %}>Options</option>
+        <option value="sustainability" {% if selected_data_type == "sustainability" %}selected{% endif %}>Sustainability</option>
+      </select>
+    </div>
+    <div class="d-flex gap-2 justify-content-center center-buttons">
+      <button class="btn btn-primary btn-md" type="submit" name="action" value="fetch_data">Fetch</button>
+      <button class="btn btn-success btn-md" type="submit" name="action" value="save_data"
+              {% if not session.get('fetched', {}).get(selected_data_type) %}disabled{% endif %}>Save</button>
+      <button class="btn btn-secondary btn-md" type="submit" name="action" value="load_data">Load</button>
+    </div>
   </form>
-
-  {% if message %}
-    <div class="alert alert-info">{{ message }}</div>
-  {% endif %}
 
   {% if data %}
     {% if selected_data_type == "info" %}
-      <table class="table table-bordered table-sm">
+      <h3 class="center-header">Basic Info for {{ stock.ticker }}</h3>
+      <table class="table table-bordered table-sm center-table">
         <thead>
           <tr><th>Field</th><th>Value</th></tr>
         </thead>
@@ -43,7 +56,7 @@
             <tr>
               <td>{{ key }}</td>
               <td>
-                {% if key == "companyOfficers" and value is iterable and value|length > 0 %}
+                {% if value is iterable and value is not string and value|length > 0 and value[0] is mapping %}
                   <table class="table table-sm table-bordered mb-2">
                     <thead>
                       <tr>
@@ -53,51 +66,15 @@
                       </tr>
                     </thead>
                     <tbody>
-                      {% for officer in value %}
+                      {% for item in value %}
                         <tr>
-                          {% for col in officer.keys() %}
-                            <td>{{ officer[col] }}</td>
+                          {% for col in item.keys() %}
+                            <td>{{ item[col] }}</td>
                           {% endfor %}
                         </tr>
                       {% endfor %}
                     </tbody>
                   </table>
-
-                {% elif key == "corporateActions" and value is iterable and value|length > 0 %}
-                  <table class="table table-sm table-bordered mb-2">
-                    <thead>
-                      <tr>
-                        {% for col in value[0].keys() %}
-                          <th>{{ col }}</th>
-                        {% endfor %}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for action in value %}
-                        <tr>
-                          {% for col in action.keys() %}
-                            <td>
-                              {% if action[col] is mapping %}
-                                <table class="table table-borderless table-sm mb-0">
-                                  <tbody>
-                                    {% for subkey, subval in action[col].items() %}
-                                      <tr>
-                                        <td><strong>{{ subkey }}</strong></td>
-                                        <td>{{ subval }}</td>
-                                      </tr>
-                                    {% endfor %}
-                                  </tbody>
-                                </table>
-                              {% else %}
-                                {{ action[col] }}
-                              {% endif %}
-                            </td>
-                          {% endfor %}
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-
                 {% else %}
                   {{ value }}
                 {% endif %}
@@ -107,11 +84,55 @@
         </tbody>
       </table>
 
-    {% elif selected_data_type in ["history", "dividends", "splits"] %}
-      <h3>{{ selected_data_type.capitalize() }}</h3>
+    {% elif selected_data_type == "options" %}
+      <h3 class="center-header">Options for {{ stock.ticker }} (Expiration: {{ data.expiration_date }})</h3>
+      <h4 class="center-header">Calls</h4>
+      <table class="table table-striped table-bordered table-sm center-table">
+        <thead>
+          <tr>
+            {% if data.calls %}
+              {% for col in data.calls[0].keys() %}
+                <th>{{ col }}</th>
+              {% endfor %}
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data.calls %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <h4 class="center-header">Puts</h4>
+      <table class="table table-striped table-bordered table-sm center-table">
+        <thead>
+          <tr>
+            {% if data.puts %}
+              {% for col in data.puts[0].keys() %}
+                <th>{{ col }}</th>
+              {% endfor %}
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data.puts %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
 
+    {% elif selected_data_type in ["history", "dividends", "splits", "analysis", "earnings", "institutional_holders", "major_holders", "sustainability"] %}
+      <h3 class="center-header">{{ selected_data_type.replace('_', ' ').capitalize() }} for {{ stock.ticker }}</h3>
       {% if data is iterable and data|length > 0 and data[0] is mapping %}
-        <table class="table table-striped table-bordered table-sm">
+        <table class="table table-striped table-bordered table-sm center-table">
           <thead>
             <tr>
               {% for col in data[0].keys() %}
@@ -130,12 +151,13 @@
           </tbody>
         </table>
       {% else %}
-        <p>No data available.</p>
+        <pre class="center-table">{{ data | tojson(indent=2) }}</pre>
       {% endif %}
 
-      
     {% else %}
-      <pre>{{ data | tojson(indent=2) }}</pre>
+      <pre class="center-table">{{ data | tojson(indent=2) }}</pre>
     {% endif %}
+  {% elif stock %}
+    <p class="center-header">No data available for {{ stock.ticker }}.</p>
   {% endif %}
 {% endblock %}

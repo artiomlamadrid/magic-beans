@@ -1,35 +1,38 @@
-# stock.py
-
 import yfinance as yf
 import json
 import os
 import pandas as pd
 import sqlite3
 
-class Stock():
-    def __init__(self, ticker, db_path="magic_beans.db"):
-        self.ticker = ticker
+class Stock:
+    def __init__(self, ticker, db_path="magic_beans.db", base_folder="stocks"):
+        self.ticker = ticker.upper()
         self.stock = yf.Ticker(ticker)
         self.db_path = db_path
+        self.base_folder = base_folder
+        self.data = {}
+
+    # --- Fetch methods ---
 
     def fetch_data(self):
         try:
-            self.data = self.stock.info
-            if not self.data:
-                print(f"No data found for {self.ticker}")
+            data = self.stock.info
+            if not data or len(data) == 0:
+                print(f"No info found for {self.ticker}")
                 return None
-            return self.data
+            self.data["info"] = data
+            return data
         except Exception as e:
-            print(f"Error fetching data for {self.ticker}: {e}")
+            print(f"Error fetching info for {self.ticker}: {e}")
             return None
-    
+
     def fetch_history(self):
         try:
             history = self.stock.history(period="max")
             if history.empty:
                 print(f"No historical data found for {self.ticker}")
                 return None
-            self.history = history
+            self.data["history"] = history
             return history
         except Exception as e:
             print(f"Error fetching historical data for {self.ticker}: {e}")
@@ -41,187 +44,377 @@ class Stock():
             if splits.empty:
                 print(f"No splits data found for {self.ticker}")
                 return None
-            self.splits = splits
+            self.data["splits"] = splits
             return splits
         except Exception as e:
-            print(f"Error fetching splits data for {self.ticker}: {e}")
+            print(f"Error fetching splits for {self.ticker}: {e}")
             return None
-    
+
     def fetch_dividends(self):
         try:
             dividends = self.stock.dividends
             if dividends.empty:
                 print(f"No dividends data found for {self.ticker}")
                 return None
-            self.dividends = dividends
+            self.data["dividends"] = dividends
             return dividends
         except Exception as e:
-            print(f"Error fetching dividends data for {self.ticker}: {e}")
+            print(f"Error fetching dividends for {self.ticker}: {e}")
             return None
 
-    # ---- Spara till fil ----
-
-    def save_data_to(self, base_folder="stocks"):
-        if not hasattr(self, "data") or not self.data:
-            print("No general info data to save.")
-            return
-        folder = os.path.join(base_folder, self.ticker)
-        os.makedirs(folder, exist_ok=True)
-        filepath = os.path.join(folder, "info.json")
+    def fetch_analysis(self):
         try:
-            with open(filepath, "w") as f:
-                json.dump(self.data, f, indent=2)
-            print(f"Saved info data to {filepath}")
+            data = self.stock.recommendations
+            if data is None or data.empty:
+                print(f"No recommendations data found for {self.ticker}")
+                return None
+            self.data["analysis"] = data
+            return data
         except Exception as e:
-            print(f"Error saving info data to file: {e}")
-    
-    def save_history_to(self, base_folder="stocks"):
-        if not hasattr(self, "history") or self.history is None:
+            print(f"Error fetching recommendations for {self.ticker}: {e}")
+            return None
+
+    def fetch_earnings(self):
+        try:
+            data = self.stock.earnings_dates
+            if data is None or data.empty:
+                print(f"No earnings dates found for {self.ticker}")
+                return None
+            self.data["earnings"] = data
+            return data
+        except Exception as e:
+            print(f"Error fetching earnings for {self.ticker}: {e}")
+            return None
+
+    def fetch_institutional_holders(self):
+        try:
+            holders = self.stock.institutional_holders
+            if holders is None or holders.empty:
+                print(f"No institutional holders data found for {self.ticker}")
+                return None
+            self.data["institutional_holders"] = holders
+            return holders
+        except Exception as e:
+            print(f"Error fetching institutional holders for {self.ticker}: {e}")
+            return None
+
+    def fetch_major_holders(self):
+        try:
+            holders = self.stock.major_holders
+            if holders is None or holders.empty:
+                print(f"No major holders data found for {self.ticker}")
+                return None
+            self.data["major_holders"] = holders
+            return holders
+        except Exception as e:
+            print(f"Error fetching major holders for {self.ticker}: {e}")
+            return None
+
+    def fetch_options(self):
+        try:
+            options = self.stock.options
+            if not options:
+                print(f"No options data found for {self.ticker}")
+                return None
+            # Fetch option chain for the first expiration date
+            opt = self.stock.option_chain(options[0])
+            result = {
+                "calls": opt.calls.to_dict(orient="records"),
+                "puts": opt.puts.to_dict(orient="records"),
+                "expiration_date": options[0]
+            }
+            self.data["options"] = result
+            return result
+        except Exception as e:
+            print(f"Error fetching options for {self.ticker}: {e}")
+            return None
+
+    def fetch_sustainability(self):
+        try:
+            data = self.stock.sustainability
+            if data is None or data.empty:
+                print(f"No sustainability data found for {self.ticker}")
+                return None
+            self.data["sustainability"] = data
+            return data
+        except Exception as e:
+            print(f"Error fetching sustainability for {self.ticker}: {e}")
+            return None
+
+    # --- Save helpers ---
+
+    def _save_df(self, df, filename):
+        folder = os.path.join(self.base_folder, self.ticker)
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, filename)
+        try:
+            # Handle Series by converting to DataFrame
+            if isinstance(df, pd.Series):
+                df_to_save = df.to_frame().reset_index()
+                # Rename the column to something meaningful
+                df_to_save.columns = ['Date', filename.split('.')[0].capitalize()]
+            elif isinstance(df.index, pd.DatetimeIndex) and "Date" not in df.columns:
+                df_to_save = df.reset_index()
+            else:
+                df_to_save = df.copy()
+            df_to_save.to_csv(path, index=False)
+            print(f"Saved {filename} to {path}")
+        except Exception as e:
+            print(f"Error saving {filename} to file: {e}")
+            raise
+
+    def _save_json(self, obj, filename):
+        folder = os.path.join(self.base_folder, self.ticker)
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, filename)
+        try:
+            with open(path, "w") as f:
+                json.dump(obj, f, indent=2)
+            print(f"Saved {filename} to {path}")
+        except Exception as e:
+            print(f"Error saving {filename} to file: {e}")
+            raise
+
+    def save_info_to_file(self):
+        if "info" not in self.data or not self.data["info"]:
+            print("No info data to save.")
+            return
+        self._save_json(self.data["info"], "info.json")
+
+    def save_history_to_file(self):
+        if "history" not in self.data or self.data["history"] is None or self.data["history"].empty:
             print("No history data to save.")
             return
-        folder = os.path.join(base_folder, self.ticker)
-        os.makedirs(folder, exist_ok=True)
-        filepath = os.path.join(folder, "history.csv")
-        try:
-            self.history.to_csv(filepath)  # Här ska det vara self.history, inte self.splits
-            print(f"Saved history data to {filepath}")
-        except Exception as e:
-            print(f"Error saving history data to file: {e}")
+        self._save_df(self.data["history"], "history.csv")
 
-
-    def save_splits_to(self, base_folder="stocks"):
-        if not hasattr(self, "splits") or self.splits is None:
-            print("No split data to save.")
+    def save_splits_to_file(self):
+        if "splits" not in self.data or self.data["splits"] is None or self.data["splits"].empty:
+            print("No splits data to save.")
             return
-        folder = os.path.join(base_folder, self.ticker)
-        os.makedirs(folder, exist_ok=True)
-        filepath = os.path.join(folder, "splits.csv")
-        try:
-            self.splits.to_csv(filepath)
-            print(f"Saved split data to {filepath}")
-        except Exception as e:
-            print(f"Error saving split data to file: {e}")
+        self._save_df(self.data["splits"], "splits.csv")
 
-    def save_dividends_to(self, base_folder="stocks"):
-        if not hasattr(self, "dividends") or self.dividends is None:
+    def save_dividends_to_file(self):
+        if "dividends" not in self.data or self.data["dividends"] is None or self.data["dividends"].empty:
             print("No dividends data to save.")
             return
-        folder = os.path.join(base_folder, self.ticker)
-        os.makedirs(folder, exist_ok=True)
-        filepath = os.path.join(folder, "dividends.csv")
-        try:
-            self.dividends.to_csv(filepath)
-            print(f"Saved dividends data to {filepath}")
-        except Exception as e:
-            print(f"Error saving dividends data to file: {e}")
+        self._save_df(self.data["dividends"], "dividends.csv")
 
-    # ---- Uppdatera SQL-databas ----
-   
-    def _connect_db(self):
+    def save_analysis_to_file(self):
+        if "analysis" not in self.data or self.data["analysis"] is None or self.data["analysis"].empty:
+            print("No analysis data to save.")
+            return
+        self._save_df(self.data["analysis"], "analysis.csv")
+
+    def save_earnings_to_file(self):
+        if "earnings" not in self.data or self.data["earnings"] is None or self.data["earnings"].empty:
+            print("No earnings data to save.")
+            return
+        self._save_df(self.data["earnings"], "earnings.csv")
+
+    def save_institutional_holders_to_file(self):
+        if "institutional_holders" not in self.data or self.data["institutional_holders"] is None or self.data["institutional_holders"].empty:
+            print("No institutional holders data to save.")
+            return
+        self._save_df(self.data["institutional_holders"], "institutional_holders.csv")
+
+    def save_major_holders_to_file(self):
+        if "major_holders" not in self.data or self.data["major_holders"] is None or self.data["major_holders"].empty:
+            print("No major holders data to save.")
+            return
+        self._save_df(self.data["major_holders"], "major_holders.csv")
+
+    def save_options_to_file(self):
+        if "options" not in self.data or not self.data["options"]:
+            print("No options data to save.")
+            return
+        self._save_json(self.data["options"], "options.json")
+
+    def save_sustainability_to_file(self):
+        if "sustainability" not in self.data or self.data["sustainability"] is None or self.data["sustainability"].empty:
+            print("No sustainability data to save.")
+            return
+        self._save_df(self.data["sustainability"], "sustainability.csv")
+
+    # --- Load helpers ---
+
+    def _load_df(self, filename):
+        path = os.path.join(self.base_folder, self.ticker, filename)
+        if not os.path.exists(path):
+            print(f"File not found: {path}")
+            return None
         try:
-            conn = sqlite3.connect(self.db_path)
-            return conn
+            df = pd.read_csv(path)
+            if "Date" in df.columns:
+                df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+                df = df.set_index("Date", drop=True)
+            return df
         except Exception as e:
-            print(f"Error connecting to database: {e}")
+            print(f"Error loading {filename} from file: {e}")
             return None
 
+    def _load_json(self, filename):
+        path = os.path.join(self.base_folder, self.ticker, filename)
+        if not os.path.exists(path):
+            print(f"File not found: {path}")
+            return None
+        try:
+            with open(path, "r") as f:
+                obj = json.load(f)
+            return obj
+        except Exception as e:
+            print(f"Error loading {filename} from file: {e}")
+            return None
+
+    def load_info_from_file(self):
+        info = self._load_json("info.json")
+        if info is not None:
+            self.data["info"] = info
+        return info
+
+    def load_history_from_file(self):
+        df = self._load_df("history.csv")
+        if df is not None and not df.empty:
+            self.data["history"] = df
+        return df
+
+    def save_cash_flow(self):
+        if "cashflow" not in self.data or self.data["cashflow"] is None or self.data["cashflow"].empty:
+            print("No cashflow data to save.")
+            return
+        self._save_df(self.data["cashflow"], "cashflow.csv")
+
+    def load_cash_flow(self):
+        df = self._load_df("cashflow.csv")
+        if df is not None and not df.empty:
+            self.data["cashflow"] = df
+        return df
+
+    def save_income_statement(self):
+        if "income_statement" not in self.data or self.data["income_statement"] is None or self.data["income_statement"].empty:
+            print("No income statement data to save.")
+            return
+        self._save_df(self.data["income_statement"], "income_statement.csv")
+
+    def load_income_statement(self):
+        df = self._load_df("income_statement.csv")
+        if df is not None and not df.empty:
+            self.data["income_statement"] = df
+        return df
+
+    def save_balance_sheet(self):
+        if "balance_sheet" not in self.data or self.data["balance_sheet"] is None or self.data["balance_sheet"].empty:
+            print("No balance sheet data to save.")
+            return
+        self._save_df(self.data["balance_sheet"], "balance_sheet.csv")
+
+    def load_balance_sheet(self):
+        df = self._load_df("balance_sheet.csv")
+        if df is not None and not df.empty:
+            self.data["balance_sheet"] = df
+        return df
+
+    def load_splits_from_file(self):
+        df = self._load_df("splits.csv")
+        if df is not None and not df.empty:
+            self.data["splits"] = df
+        return df
+
+    def load_dividends_from_file(self):
+        df = self._load_df("dividends.csv")
+        if df is not None and not df.empty:
+            self.data["dividends"] = df
+        return df
+
+    def load_analysis_from_file(self):
+        df = self._load_df("analysis.csv")
+        if df is not None and not df.empty:
+            self.data["analysis"] = df
+        return df
+
+    def load_earnings_from_file(self):
+        df = self._load_df("earnings.csv")
+        if df is not None and not df.empty:
+            self.data["earnings"] = df
+        return df
+
+    def load_institutional_holders_from_file(self):
+        df = self._load_df("institutional_holders.csv")
+        if df is not None and not df.empty:
+            self.data["institutional_holders"] = df
+        return df
+
+    def load_major_holders_from_file(self):
+        df = self._load_df("major_holders.csv")
+        if df is not None and not df.empty:
+            self.data["major_holders"] = df
+        return df
+
+    def load_options_from_file(self):
+        options = self._load_json("options.json")
+        if options is not None:
+            self.data["options"] = options
+        return options
+
+    def load_sustainability_from_file(self):
+        df = self._load_df("sustainability.csv")
+        if df is not None and not df.empty:
+            self.data["sustainability"] = df
+        return df
+
+    # --- Database update ---
+
     def update_database_info(self):
-        """Update the stock_data table with the latest info data."""
-        if not hasattr(self, "data") or not self.data:
+        if "info" not in self.data or not self.data["info"]:
             print("No info data to update database with.")
             return
         conn = self._connect_db()
         if not conn:
             return
-
         try:
             cur = conn.cursor()
             columns = ["full_name", "price", "fifty_day_avg", "two_hundred_day_avg", "forward_pe"]
-            
-            # Bygg värden från self.data med fallback
             values = [
-                self.data.get("longName", None),
-                self.data.get("regularMarketPrice", None),
-                self.data.get("fiftyDayAverage", None),
-                self.data.get("twoHundredDayAverage", None),
-                self.data.get("forwardPE", None)
+                self.data["info"].get("longName", "Unknown"),
+                self.data["info"].get("regularMarketPrice", 0.0),
+                self.data["info"].get("fiftyDayAverage", 0.0),
+                self.data["info"].get("twoHundredDayAverage", 0.0),
+                self.data["info"].get("forwardPE", 0.0),
             ]
-
             sql = f"""
-            INSERT INTO stock_data (ticker, {", ".join(columns)})
-            VALUES (?, {", ".join(["?"]*len(columns))})
-            ON CONFLICT(ticker) DO UPDATE SET
-            {", ".join([f"{col}=excluded.{col}" for col in columns])}
+                INSERT INTO stock_data (ticker, {', '.join(columns)})
+                VALUES (?, {', '.join(['?']*len(columns))})
+                ON CONFLICT(ticker) DO UPDATE SET
+                {', '.join([f"{col}=excluded.{col}" for col in columns])}
             """
-
-            print("SQL to execute:", sql)
-            print("Values:", [self.ticker] + values)
-
             cur.execute(sql, [self.ticker] + values)
             conn.commit()
-            print(f"Updated stock_data table with info for {self.ticker}")
+            print(f"Updated database with info for {self.ticker}")
         except Exception as e:
-            print(f"Error updating stock_data table: {e}")
+            print(f"Error updating database: {e}")
         finally:
             conn.close()
 
-    def dividends_as_dicts(self):
-        if not hasattr(self, "dividends") or self.dividends is None:
-            return []
-        return [{"Date": str(date), "Dividends": float(value)} for date, value in self.dividends.items()]
-
-    def splits_as_dicts(self):
-        if not hasattr(self, "splits") or self.splits is None:
-            return []
-        return [{"Date": str(date), "Stock Splits": float(value)} for date, value in self.splits.items()]
-
-def main():
-    symbol = "AAPL"
-    stock = Stock(symbol)
-
-    print("Basic info:")
-    stock.fetch_data()
-
-    print("\nHistorical data:")
-    print(stock.fetch_history())
-
-    print("\nSplits:")
-    print(stock.fetch_splits())
-
-    print("\nDividends:")
-    print(stock.fetch_dividends())
-
-    print("\nAnalysis:")
-    print(stock.fetch_analysis())
-
-    print("\nFinancials:")
-    print(stock.fetch_financials())
-
-    print("\nBalance Sheet:")
-    print(stock.fetch_balance_sheet())
-
-    print("\nCashflow:")
-    print(stock.fetch_cashflow())
-
-    print("\nEarnings:")
-    print(stock.fetch_earnings())
-
-    print("\nInstitutional Holders:")
-    print(stock.fetch_institutional_holders())
-
-    print("\nMajor Holders:")
-    print(stock.fetch_major_holders())
-
-    print("\nOptions:")
-    opts = stock.fetch_options()
-    print(opts)
-
-    if opts:
-        print("\nOption Chain for first expiry:")
-        print(stock.fetch_option_chain(opts[0]))
-
-    print("\nSustainability:")
-    print(stock.fetch_sustainability())
-
-if __name__ == "__main__":
-    main()
+    def _connect_db(self):
+        try:
+            return sqlite3.connect(self.db_path)
+        except Exception as e:
+            print(f"Error connecting to DB: {e}")
+            return None
+# debug
+# if __name__ == "__main__":
+#     ticker = "AAPL"
+#     stock = Stock(ticker)
+#     stock.fetch_data()
+#     stock.fetch_history()
+#     stock.fetch_splits()
+#     stock.fetch_dividends()
+#     stock.save_info_to_file()
+#     stock.save_history_to_file()
+#     stock.save_splits_to_file()
+#     stock.save_dividends_to_file()
+#     stock.update_database_info()
+#     print("Info Data:", stock.data.get("info"))
+#     print("History Data:", stock.data.get("history"))
+#     print("Splits Data:", stock.data.get("splits"))
+#     print("Dividends Data:", stock.data.get("dividends"))
+#     print("Database updated successfully.")
