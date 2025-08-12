@@ -56,19 +56,20 @@ class StockAnalysis(Stock):
             raise ValueError("trailingEps not available in loaded data.")
 
         return eps * peer_pe
-    
-if __name__ == "__main__":
-    ticker = "AAPL"
-    analysis = StockAnalysis(ticker)
-    analysis.fetch_data()
-    analysis.fetch_history()
-    analysis.fetch_splits()
-    analysis.fetch_dividends()
 
-    analysis.discounted_cash_flow()
-    analysis.dividend_discount_model()
-    analysis.price_earnings_valuation()
+# debug
+# if __name__ == "__main__":
+#     ticker = "AAPL"
+#     analysis = StockAnalysis(ticker)
+#     analysis.fetch_data()
+#     analysis.fetch_history()
+#     analysis.fetch_splits()
+#     analysis.fetch_dividends()
 
-    print("Discounted Cash Flow Valuation:", analysis.discounted_cash_flow())
-    print("Dividend Discount Model Valuation:", analysis.dividend_discount_model())
-    print("Price/Earnings Valuation:", analysis.price_earnings_valuation())
+#     analysis.discounted_cash_flow()
+#     analysis.dividend_discount_model()
+#     analysis.price_earnings_valuation()
+
+#     print("Discounted Cash Flow Valuation:", analysis.discounted_cash_flow())
+#     print("Dividend Discount Model Valuation:", analysis.dividend_discount_model())
+#     print("Price/Earnings Valuation:", analysis.price_earnings_valuation())

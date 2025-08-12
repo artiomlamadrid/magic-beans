@@ -1,8 +1,11 @@
+#stock.py
+
 import yfinance as yf
 import json
 import os
 import pandas as pd
 import sqlite3
+from datetime import datetime
 
 class Stock:
     def __init__(self, ticker, db_path="magic_beans.db", base_folder="stocks"):
@@ -11,6 +14,24 @@ class Stock:
         self.db_path = db_path
         self.base_folder = base_folder
         self.data = {}
+
+    def _prepare_for_json(self, obj):
+        """Convert pandas objects and timestamps to JSON-serializable format"""
+        if isinstance(obj, dict):
+            return {key: self._prepare_for_json(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._prepare_for_json(item) for item in obj]
+        elif isinstance(obj, pd.Timestamp):
+            return obj.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(obj) else None
+        elif isinstance(obj, datetime):
+            return obj.strftime('%Y-%m-%d %H:%M:%S')
+        elif pd.isna(obj):
+            return None
+        elif isinstance(obj, (pd.Series, pd.DataFrame)):
+            # Convert to dict and then process
+            return self._prepare_for_json(obj.to_dict())
+        else:
+            return obj
 
     # --- Fetch methods ---
 
@@ -116,13 +137,20 @@ class Stock:
             if not options:
                 print(f"No options data found for {self.ticker}")
                 return None
+            
             # Fetch option chain for the first expiration date
             opt = self.stock.option_chain(options[0])
+            
+            # Convert DataFrames to records and handle timestamps
+            calls_data = opt.calls.to_dict(orient="records")
+            puts_data = opt.puts.to_dict(orient="records")
+            
             result = {
-                "calls": opt.calls.to_dict(orient="records"),
-                "puts": opt.puts.to_dict(orient="records"),
-                "expiration_date": options[0]
+                "calls": calls_data,
+                "puts": puts_data,
+                "expiration_date": str(options[0])  # Convert to string immediately
             }
+            
             self.data["options"] = result
             return result
         except Exception as e:
@@ -168,8 +196,11 @@ class Stock:
         os.makedirs(folder, exist_ok=True)
         path = os.path.join(folder, filename)
         try:
+            # Prepare object for JSON serialization
+            json_ready_obj = self._prepare_for_json(obj)
+            
             with open(path, "w") as f:
-                json.dump(obj, f, indent=2)
+                json.dump(json_ready_obj, f, indent=2, default=str)  # default=str as fallback
             print(f"Saved {filename} to {path}")
         except Exception as e:
             print(f"Error saving {filename} to file: {e}")

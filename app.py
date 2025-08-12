@@ -218,7 +218,7 @@ def quote():
             selected_data_type=data_type,
             data=fetched_data
         )
-        get_flashed_messages()  # Consume flash messages
+        get_flashed_messages()
         return response
 
     return render_template("quote.html", stock=None, selected_data_type=data_type)
