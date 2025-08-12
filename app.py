@@ -7,6 +7,7 @@ from flask import Flask, flash, redirect, render_template, request, session, get
 from flask_session import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 from stock import Stock  # Custom Stock class for data fetching and management
+from stock_analysis import StockAnalysis
 from helpers import apology, login_required, usd  # Helper functions for the web app
 import os
 import pandas as pd
@@ -111,12 +112,12 @@ def quote():
         # Validate ticker symbol
         if not ticker:
             flash("Please enter a ticker symbol.", "warning")
-            return render_template("quote.html", stock=None, selected_data_type=data_type, data=None)
+            return render_template("quote.html", stock=None, selected_data_type=data_type, data=None, analysis=None)
 
         # Validate data type
         if data_type not in supported_data_types:
             flash(f"Unsupported data type: {data_type}", "danger")
-            return render_template("quote.html", stock=None, selected_data_type=data_type, data=None)
+            return render_template("quote.html", stock=None, selected_data_type=data_type, data=None, analysis=None)
 
         # Manage session data for the current ticker
         if "fetched" not in session or session["fetched"].get("ticker") != ticker:
@@ -237,7 +238,7 @@ def quote():
                         stock.data[data_type] = data_to_save
                     except Exception as e:
                         flash(f"Error fetching {data_type.replace('_', ' ')} for saving: {str(e)}", "danger")
-                        return render_template("quote.html", stock={"ticker": ticker}, selected_data_type=data_type, data=None)
+                        return render_template("quote.html", stock={"ticker": ticker}, selected_data_type=data_type, data=None, analysis=None)
 
             # Check if there's data to save
             if data_to_save is None or (hasattr(data_to_save, 'empty') and data_to_save.empty):
@@ -278,6 +279,283 @@ def quote():
                     flash(f"Error loading {data_type.replace('_', ' ')} data for {ticker}: {str(e)}", "danger")
                     fetched_data = None
 
+        elif action == "analyze_stock":
+            """Perform comprehensive stock analysis using StockAnalysis class"""
+            try:
+                # Create StockAnalysis instance
+                stock_analyzer = StockAnalysis(ticker)
+                
+                # Try to load existing data first, then fetch if needed
+                data_methods = [
+                    'load_info_from_file', 'load_analysis_from_file', 'load_balance_sheet_from_file',
+                    'load_cash_flows_from_file', 'load_dividends_from_file', 'load_earnings_from_file',
+                    'load_financials_from_file', 'load_history_from_file'
+                ]
+                
+                data_loaded = False
+                for method in data_methods:
+                    try:
+                        result = getattr(stock_analyzer, method)()
+                        if result is not None:
+                            data_loaded = True
+                    except Exception:
+                        continue
+                
+                # If no data loaded from files, fetch from API
+                if not data_loaded:
+                    try:
+                        stock_analyzer.fetch_data()
+                        stock_analyzer.fetch_history()
+                        stock_analyzer.fetch_cash_flows()
+                        stock_analyzer.fetch_dividends()
+                        stock_analyzer.fetch_analysis()
+                        data_loaded = True
+                    except Exception as e:
+                        flash(f"Error fetching data for analysis: {str(e)}", "danger")
+                        return render_template("quote.html", stock={"ticker": ticker}, selected_data_type=data_type, data=None, analysis=None)
+                
+                # Verify we have minimum required data
+                info = stock_analyzer.data.get('info', {})
+                current_price = info.get('currentPrice', 0)
+                
+                if not current_price:
+                    flash(f"Unable to get current price for {ticker}. Please try fetching basic info first.", "warning")
+                    return render_template("quote.html", stock={"ticker": ticker}, selected_data_type=data_type, data=None, analysis=None)
+                
+                # Perform comprehensive analysis
+                analysis_results = {}
+                
+                # Get basic info and technical data
+                ma_50 = info.get('fiftyDayAverage', 0)
+                ma_200 = info.get('twoHundredDayAverage', 0)
+                
+                # Helper function to format currency
+                def format_currency(value):
+                    if value and value > 0 and isinstance(value, (int, float)) and value == value and abs(value) != float('inf'):
+                        return f"${value:,.2f}"
+                    return "N/A"
+                
+                # Helper function to format large numbers
+                def format_large_number(value):
+                    if value and value > 0 and isinstance(value, (int, float)) and value == value and abs(value) != float('inf'):
+                        return f"${value:,.0f}"
+                    return "N/A"
+                
+                # Helper function to format percentage
+                def format_percentage(value):
+                    if value is not None and isinstance(value, (int, float)) and value == value and abs(value) != float('inf'):
+                        return f"{value:+.1f}%"
+                    return "N/A"
+                
+                analysis_results['basic_info'] = {
+                    'ticker': ticker,
+                    'current_price': current_price,
+                    'current_price_formatted': format_currency(current_price),
+                    'ma_50': ma_50,
+                    'ma_50_formatted': format_currency(ma_50),
+                    'ma_200': ma_200,
+                    'ma_200_formatted': format_currency(ma_200),
+                    'sector': info.get('sector', 'N/A'),
+                    'industry': info.get('industry', 'N/A'),
+                    'market_cap': info.get('marketCap', 0),
+                    'market_cap_formatted': format_large_number(info.get('marketCap', 0))
+                }
+                
+                # Determine if hypergrowth and run appropriate analysis
+                is_hypergrowth = stock_analyzer._identify_hypergrowth_company()
+                
+                # Run valuations with error handling
+                valuations = []
+                dcf_value = None
+                analysis_type = 'Traditional DCF'
+                
+                def calculate_safe_upside(value, current_price):
+                    """Calculate upside percentage with proper error handling"""
+                    if not value or not current_price or current_price <= 0:
+                        return None
+                    try:
+                        upside = ((value - current_price) / current_price) * 100
+                        # Check for infinite or NaN values
+                        if not (isinstance(upside, (int, float)) and upside == upside and abs(upside) != float('inf')):
+                            return None
+                        # Also check for extremely large values that might cause formatting issues
+                        if abs(upside) > 1000000:  # More than 1 million percent seems unreasonable
+                            return None
+                        return round(upside, 2)  # Round to 2 decimal places
+                    except Exception as e:
+                        print(f"Error calculating upside: {e}")
+                        return None
+                
+                try:
+                    if is_hypergrowth:
+                        stock_analyzer.evaluate_hypergrowth_stock()
+                        dcf_value = stock_analyzer._last_results.get('hypergrowth_valuation')
+                        analysis_type = 'Hypergrowth'
+                    else:
+                        dcf_value = stock_analyzer.evaluate_DCF()
+                        analysis_type = 'Traditional DCF'
+                    
+                    if dcf_value:
+                        upside = calculate_safe_upside(dcf_value, current_price)
+                        print(f"DCF: value={dcf_value}, current_price={current_price}, upside={upside}")
+                        valuations.append({
+                            'method': analysis_type, 
+                            'value': dcf_value,
+                            'value_formatted': format_currency(dcf_value),
+                            'upside': upside,
+                            'upside_formatted': format_percentage(upside),
+                            'upside_class': 'text-success' if upside and upside > 0 else 'text-danger' if upside and upside < 0 else 'text-muted'
+                        })
+                except Exception as e:
+                    print(f"DCF analysis error: {e}")
+                
+                # Run P/E analysis
+                try:
+                    pe_result = stock_analyzer.evaluate_PE()
+                    if pe_result and pe_result.get('fair_value_justified'):
+                        pe_value = pe_result['fair_value_justified']
+                        upside = calculate_safe_upside(pe_value, current_price)
+                        print(f"P/E: value={pe_value}, current_price={current_price}, upside={upside}")
+                        valuations.append({
+                            'method': 'P/E Analysis', 
+                            'value': pe_value,
+                            'value_formatted': format_currency(pe_value),
+                            'upside': upside,
+                            'upside_formatted': format_percentage(upside),
+                            'upside_class': 'text-success' if upside and upside > 0 else 'text-danger' if upside and upside < 0 else 'text-muted'
+                        })
+                except Exception as e:
+                    print(f"P/E analysis error: {e}")
+                
+                # Run DDM analysis
+                try:
+                    ddm_value = stock_analyzer.evaluate_DDM()
+                    if ddm_value:
+                        upside = calculate_safe_upside(ddm_value, current_price)
+                        print(f"DDM: value={ddm_value}, current_price={current_price}, upside={upside}")
+                        valuations.append({
+                            'method': 'Dividend Model', 
+                            'value': ddm_value,
+                            'value_formatted': format_currency(ddm_value),
+                            'upside': upside,
+                            'upside_formatted': format_percentage(upside),
+                            'upside_class': 'text-success' if upside and upside > 0 else 'text-danger' if upside and upside < 0 else 'text-muted'
+                        })
+                except Exception as e:
+                    print(f"DDM analysis error: {e}")
+                
+                # Get analyst recommendations
+                analyst_consensus = None
+                try:
+                    analyst_consensus = stock_analyzer.parse_analyst_recommendations()
+                except Exception as e:
+                    print(f"Analyst analysis error: {e}")
+                
+                # Calculate moving averages and trends
+                ma_result = None
+                try:
+                    stock_analyzer.calculate_moving_averages()
+                    ma_result = stock_analyzer.get_last_moving_averages()
+                except Exception as e:
+                    print(f"Technical analysis error: {e}")
+                
+                # Calculate average valuation and recommendation
+                if valuations and current_price and current_price > 0:
+                    avg_valuation = sum(v['value'] for v in valuations) / len(valuations)
+                    upside_pct = calculate_safe_upside(avg_valuation, current_price)
+                    
+                    if upside_pct and upside_pct > 15:
+                        our_recommendation = 'STRONG BUY'
+                        rec_class = 'success'
+                    elif upside_pct and upside_pct > 5:
+                        our_recommendation = 'BUY'
+                        rec_class = 'success'
+                    elif upside_pct and upside_pct > -5:
+                        our_recommendation = 'HOLD'
+                        rec_class = 'warning'
+                    elif upside_pct and upside_pct > -15:
+                        our_recommendation = 'SELL'
+                        rec_class = 'danger'
+                    else:
+                        our_recommendation = 'STRONG SELL'
+                        rec_class = 'danger'
+                else:
+                    avg_valuation = sum(v['value'] for v in valuations) / len(valuations) if valuations else 0
+                    upside_pct = None  # Set to None when we can't calculate
+                    our_recommendation = 'INSUFFICIENT DATA'
+                    rec_class = 'secondary'
+                
+                analysis_results['valuations'] = valuations
+                analysis_results['average_valuation'] = avg_valuation
+                analysis_results['average_valuation_formatted'] = format_currency(avg_valuation)
+                analysis_results['upside_percent'] = upside_pct
+                analysis_results['upside_percent_formatted'] = format_percentage(upside_pct)
+                analysis_results['upside_class'] = 'text-success' if upside_pct and upside_pct > 0 else 'text-danger' if upside_pct and upside_pct < 0 else 'text-muted'
+                analysis_results['our_recommendation'] = our_recommendation
+                analysis_results['recommendation_class'] = rec_class
+                
+                # Process analyst consensus with formatting
+                if analyst_consensus:
+                    analysis_results['analyst_consensus'] = {
+                        'consensus': analyst_consensus.get('consensus', 'N/A'),
+                        'bullish_pct': analyst_consensus.get('bullish_pct', 0),
+                        'neutral_pct': analyst_consensus.get('neutral_pct', 0),
+                        'bearish_pct': analyst_consensus.get('bearish_pct', 0),
+                        'sentiment_score': analyst_consensus.get('sentiment_score', 0),
+                        'bullish_formatted': f"{analyst_consensus.get('bullish_pct', 0):.1f}%",
+                        'neutral_formatted': f"{analyst_consensus.get('neutral_pct', 0):.1f}%",
+                        'bearish_formatted': f"{analyst_consensus.get('bearish_pct', 0):.1f}%",
+                        'sentiment_formatted': f"{analyst_consensus.get('sentiment_score', 0):+.2f}"
+                    }
+                else:
+                    analysis_results['analyst_consensus'] = None
+                
+                # Process technical analysis with formatting
+                if ma_result:
+                    analysis_results['technical_analysis'] = {
+                        'trend_50': ma_result.get('trend_50', 'N/A'),
+                        'trend_200': ma_result.get('trend_200', 'N/A'),
+                        'overall_trend': ma_result.get('overall_trend', 'N/A'),
+                        'ma_50_pct': ma_result.get('ma_50_pct', 0),
+                        'ma_200_pct': ma_result.get('ma_200_pct', 0),
+                        'ma_50_formatted': format_percentage(ma_result.get('ma_50_pct', 0)),
+                        'ma_200_formatted': format_percentage(ma_result.get('ma_200_pct', 0)),
+                        'ma_50_class': 'text-success' if ma_result.get('trend_50') == 'Above' else 'text-danger',
+                        'ma_200_class': 'text-success' if ma_result.get('trend_200') == 'Above' else 'text-danger',
+                        'overall_class': 'text-success' if 'Uptrend' in str(ma_result.get('overall_trend', '')) else 'text-danger' if 'Downtrend' in str(ma_result.get('overall_trend', '')) else 'text-warning'
+                    }
+                else:
+                    analysis_results['technical_analysis'] = None
+                
+                analysis_results['is_hypergrowth'] = is_hypergrowth
+                
+                # Debug print to see what we're sending
+                print(f"Analysis results for {ticker}:")
+                print(f"  Basic info: {analysis_results['basic_info']}")
+                print(f"  Valuations: {len(valuations)} methods")
+                for i, val in enumerate(valuations):
+                    print(f"    {i+1}. {val['method']}: value={val['value']}, upside={val['upside']}")
+                print(f"  Recommendation: {our_recommendation}")
+                print(f"  Analyst consensus: {analyst_consensus is not None}")
+                print(f"  Technical analysis: {ma_result is not None}")
+                print(f"  About to render template with analysis data")
+                
+                flash(f"Analysis completed for {ticker}.", "success")
+                
+                # Render template with analysis results
+                return render_template(
+                    "quote.html",
+                    stock={"ticker": ticker},
+                    selected_data_type=data_type,
+                    data=fetched_data,
+                    analysis=analysis_results
+                )
+                
+            except Exception as e:
+                flash(f"Error performing analysis for {ticker}: {str(e)}", "danger")
+                import traceback
+                print(traceback.format_exc())  # For debugging
+                return render_template("quote.html", stock={"ticker": ticker}, selected_data_type=data_type, data=None, analysis=None)
         else:
             # Invalid action provided
             flash("Invalid action.", "danger")
@@ -287,13 +565,14 @@ def quote():
             "quote.html",
             stock={"ticker": ticker},
             selected_data_type=data_type,
-            data=fetched_data
+            data=fetched_data,
+            analysis=None
         )
         get_flashed_messages()  # Clear flash messages from session
         return response
 
     # GET request - show the quote form
-    return render_template("quote.html", stock=None, selected_data_type=data_type)
+    return render_template("quote.html", stock=None, selected_data_type=data_type, analysis=None)
 
 # User registration route
 @app.route("/register", methods=["GET", "POST"])

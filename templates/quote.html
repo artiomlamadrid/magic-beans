@@ -7,7 +7,7 @@
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="center-alert">
+      <div class="alert-container">
         {% for category, message in messages %}
           <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
             {{ message }}
@@ -44,6 +44,9 @@
       <button class="btn btn-success btn-md" type="submit" name="action" value="save_data"
               {% if not session.get('fetched', {}).get(selected_data_type) %}disabled{% endif %}>Save</button>
       <button class="btn btn-secondary btn-md" type="submit" name="action" value="load_data">Load</button>
+      <button type="submit" name="action" value="analyze_stock" class="btn btn-primary">
+          <i class="fas fa-chart-line"></i> Analyze
+      </button>
     </div>
   </form>
 
@@ -162,5 +165,168 @@
     {% endif %}
   {% elif stock %}
     <p class="center-header">No data available for {{ stock.ticker }}.</p>
+  {% endif %}
+
+  {% if analysis %}
+  <div class="mt-4">
+      <div class="alert alert-info">
+          <strong>Debug Info:</strong> Analysis data received for {{ analysis.basic_info.ticker if analysis.basic_info else 'Unknown' }}
+      </div>
+  </div>
+
+  <div class="mt-4">
+      <h3 class="text-center">📊 Stock Analysis Results for {{ analysis.basic_info.ticker if analysis.basic_info else ticker }}</h3>
+      
+      <!-- Basic Information Card -->
+      <div class="card mb-3">
+          <div class="card-header">
+              <h5 class="mb-0">📈 Market Overview</h5>
+          </div>
+          <div class="card-body">
+              {% if analysis.basic_info %}
+                            <div class="row">
+                  <div class="col-md-6">
+                      <p><strong>Sector:</strong> {{ analysis.basic_info.sector }}</p>
+                      <p><strong>Industry:</strong> {{ analysis.basic_info.industry }}</p>
+                      <p><strong>Market Cap:</strong> {{ analysis.basic_info.market_cap_formatted }}</p>
+                  </div>
+                  <div class="col-md-6">
+                      <p><strong>Current Price:</strong> {{ analysis.basic_info.current_price_formatted }}</p>
+                      <p><strong>50-Day Average:</strong> {{ analysis.basic_info.ma_50_formatted }}</p>
+                      <p><strong>200-Day Average:</strong> {{ analysis.basic_info.ma_200_formatted }}</p>
+                  </div>
+              </div>
+              {% else %}
+              <p class="text-muted">No basic info available</p>
+              {% endif %}
+          </div>
+      </div>
+
+      <!-- Valuation Results Card -->
+      <div class="card mb-3">
+          <div class="card-header">
+              <h5 class="mb-0">💰 Valuation Analysis</h5>
+          </div>
+          <div class="card-body">
+              {% if analysis.valuations and analysis.valuations|length > 0 %}
+              <div class="table-responsive">
+                  <table class="table table-striped">
+                      <thead>
+                          <tr>
+                              <th>Valuation Method</th>
+                              <th>Fair Value</th>
+                              <th>Current Price</th>
+                              <th>Upside/Downside</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {% for valuation in analysis.valuations %}
+                          <tr>
+                              <td>{{ valuation.method }}</td>
+                              <td>{{ valuation.value_formatted }}</td>
+                              <td>{{ analysis.basic_info.current_price_formatted }}</td>
+                              <td class="{{ valuation.upside_class }}">
+                                  {{ valuation.upside_formatted }}
+                              </td>
+                          </tr>
+                          {% endfor %}
+                          {% if analysis.average_valuation_formatted %}
+                          <tr class="table-info font-weight-bold">
+                              <td><strong>Average Fair Value</strong></td>
+                              <td><strong>{{ analysis.average_valuation_formatted }}</strong></td>
+                              <td><strong>{{ analysis.basic_info.current_price_formatted }}</strong></td>
+                              <td class="{{ analysis.upside_class }}">
+                                  <strong>{{ analysis.upside_percent_formatted }}</strong>
+                              </td>
+                          </tr>
+                          {% endif %}
+                      </tbody>
+                  </table>
+              </div>
+              {% else %}
+              <p class="text-muted">Unable to calculate valuations - insufficient data or analysis errors.</p>
+              {% endif %}
+          </div>
+      </div>
+
+      <!-- Recommendations Card -->
+      <div class="card mb-3">
+          <div class="card-header">
+              <h5 class="mb-0">🎯 Investment Recommendations</h5>
+          </div>
+          <div class="card-body">
+              <div class="row">
+                  <div class="col-md-6">
+                      <h6>Our Analysis</h6>
+                      <span class="badge badge-{{ analysis.recommendation_class }} badge-lg p-2">
+                          {{ analysis.our_recommendation }}
+                      </span>
+                      {% if analysis.is_hypergrowth %}
+                      <p class="mt-2"><small class="text-info"><i class="fas fa-rocket"></i> Analyzed using Hypergrowth Framework</small></p>
+                      {% endif %}
+                  </div>
+                  <div class="col-md-6">
+                      <h6>Analyst Consensus</h6>
+                      {% if analysis.analyst_consensus %}
+                      <span class="badge badge-secondary badge-lg p-2">
+                          {{ analysis.analyst_consensus.consensus }}
+                      </span>
+                      <p class="mt-2">
+                          <small>
+                              Bullish: {{ analysis.analyst_consensus.bullish_formatted }} | 
+                              Neutral: {{ analysis.analyst_consensus.neutral_formatted }} | 
+                              Bearish: {{ analysis.analyst_consensus.bearish_formatted }}
+                          </small>
+                      </p>
+                      <p><small>Sentiment Score: {{ analysis.analyst_consensus.sentiment_formatted }}</small></p>
+                      {% else %}
+                      <span class="badge badge-secondary badge-lg p-2">No Data Available</span>
+                      {% endif %}
+                  </div>
+              </div>
+          </div>
+      </div>
+
+      <!-- Technical Analysis Card -->
+      {% if analysis.technical_analysis %}
+      <div class="card mb-3">
+          <div class="card-header">
+              <h5 class="mb-0">📊 Technical Analysis</h5>
+          </div>
+          <div class="card-body">
+              <div class="row">
+                  <div class="col-md-4">
+                      <p><strong>50-Day MA Trend:</strong> 
+                          <span class="{{ analysis.technical_analysis.ma_50_class }}">
+                              {{ analysis.technical_analysis.trend_50 }} ({{ analysis.technical_analysis.ma_50_formatted }})
+                          </span>
+                      </p>
+                  </div>
+                  <div class="col-md-4">
+                      <p><strong>200-Day MA Trend:</strong> 
+                          <span class="{{ analysis.technical_analysis.ma_200_class }}">
+                              {{ analysis.technical_analysis.trend_200 }} ({{ analysis.technical_analysis.ma_200_formatted }})
+                          </span>
+                      </p>
+                  </div>
+                  <div class="col-md-4">
+                      <p><strong>Overall Trend:</strong> 
+                          <span class="{{ analysis.technical_analysis.overall_class }}">
+                              {{ analysis.technical_analysis.overall_trend }}
+                          </span>
+                      </p>
+                  </div>
+              </div>
+          </div>
+      </div>
+      {% endif %}
+  </div>
+  {% else %}
+  <!-- Debug: No analysis data received -->
+  <div class="mt-4" style="display: none;">
+      <div class="alert alert-warning">
+          Debug: No analysis data in template context
+      </div>
+  </div>
   {% endif %}
 {% endblock %}

@@ -78,3 +78,16 @@ nav .navbar-brand .green {
     border: 1px solid #ced4da; /* Bootstrap-like border */
     border-radius: 0.25rem; /* Bootstrap-like border radius */
 }
+
+.badge-lg {
+    font-size: 1.1em;
+    padding: 0.5rem 1rem !important;
+}
+
+.table-info {
+    background-color: #d1ecf1 !important;
+}
+
+.card-header h5 {
+    color: #495057;
+}
