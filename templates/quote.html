@@ -34,6 +34,9 @@
         <option value="major_holders" {% if selected_data_type == "major_holders" %}selected{% endif %}>Major Holders</option>
         <option value="options" {% if selected_data_type == "options" %}selected{% endif %}>Options</option>
         <option value="sustainability" {% if selected_data_type == "sustainability" %}selected{% endif %}>Sustainability</option>
+        <option value="balance_sheet" {% if selected_data_type == "balance_sheet" %}selected{% endif %}>Balance Sheet</option>
+        <option value="cashflow" {% if selected_data_type == "cashflow" %}selected{% endif %}>Cash Flow</option>
+        <option value="financials" {% if selected_data_type == "financials" %}selected{% endif %}>Financials</option>
       </select>
     </div>
     <div class="d-flex gap-2 justify-content-center center-buttons">
@@ -129,7 +132,7 @@
         </tbody>
       </table>
 
-    {% elif selected_data_type in ["history", "dividends", "splits", "analysis", "earnings", "institutional_holders", "major_holders", "sustainability"] %}
+    {% elif selected_data_type in ["history", "dividends", "splits", "analysis", "earnings", "institutional_holders", "major_holders", "sustainability", "balance_sheet", "cashflow", "financials"] %}
       <h3 class="center-header">{{ selected_data_type.replace('_', ' ').capitalize() }} for {{ stock.ticker }}</h3>
       {% if data is iterable and data|length > 0 and data[0] is mapping %}
         <table class="table table-striped table-bordered table-sm center-table">
