@@ -3,7 +3,7 @@
 {% block title %}Quote{% endblock %}
 
 {% block main %}
-  <h1 class="center-header">Yahoo Finance API interface</h1>
+  <h1 class="center-header">Yahoo Finance API Interface and Analysis Tool</h1>
 
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
@@ -45,8 +45,169 @@
               {% if not session.get('fetched', {}).get(selected_data_type) %}disabled{% endif %}>Save</button>
       <button class="btn btn-secondary btn-md" type="submit" name="action" value="load_data">Load</button>
       <button type="submit" name="action" value="analyze_stock" class="btn btn-primary">
-          <i class="fas fa-chart-line"></i> Analyze
+          Analyze
       </button>
+    </div>
+    
+    <!-- Collapsible Analysis Parameters Section -->
+    <div class="mt-3 text-center">
+      <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#analysisParams" aria-expanded="false" aria-controls="analysisParams" onclick="setAnalysisParamsExpanded()">
+        Configure Analysis Parameters
+      </button>
+      <input type="hidden" id="analysisParams_expanded" name="analysisParams_expanded" value="false">
+      <div class="collapse mt-3 {% if request.form.get('analysisParams_expanded') == 'true' %}show{% endif %}" id="analysisParams">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title mb-4"><strong>Valuation Model Parameters</strong></h5>
+            
+            <!-- DCF Parameters -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <h5 class="mb-3"><strong>Discounted Cash Flow (DCF)</strong></h5>
+              </div>
+              <div class="col-lg-3 col-md-6 mb-2 d-flex flex-column align-items-center" style="min-width:220px;">
+                <label for="dcf_years" class="form-label w-100 text-center">Projection Years
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Projection Years" data-bs-content="Number of years to project future cash flows in the DCF model. Accepts 5-20. Higher values increase long-term impact.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="dcf_years" name="dcf_years" value="12" min="5" max="20">
+              </div>
+              <div class="col-lg-3 col-md-6 mb-2" style="min-width:220px;">
+                <label for="dcf_fade_years" class="form-label w-100 text-center">Fade Years
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Fade Years" data-bs-content="Years over which growth fades from initial to terminal rate. Accepts 3-15. Controls how quickly growth slows.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="dcf_fade_years" name="dcf_fade_years" value="8" min="3" max="15">
+              </div>
+              <div class="col-lg-3 col-md-6 mb-2" style="min-width:220px;">
+                <label for="dcf_terminal_g" class="form-label w-100 text-center">Terminal Growth (%)
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Terminal Growth Rate" data-bs-content="Perpetual growth rate after projection period (Gordon Growth). Accepts 0-10%. Typical: 2-4%.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="dcf_terminal_g" name="dcf_terminal_g" value="4.0" min="0" max="10" step="0.1">
+              </div>
+              <div class="col-lg-3 col-md-6 mb-2" style="min-width:220px;">
+                <label for="dcf_forward_uplift" class="form-label w-100 text-center">Forward Uplift (%)
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Forward Uplift" data-bs-content="Adjustment for expected margin or FCF improvement. Accepts 0-50%. Typical: 5-15%.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="dcf_forward_uplift" name="dcf_forward_uplift" value="10.0" min="0" max="50" step="0.1">
+              </div>
+            </div>
+            
+            <!-- DDM Parameters -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <h5 class="mb-3"><strong>Dividend Discount Model (DDM)</strong></h5>
+              </div>
+              <div class="col-lg-4 col-md-6 mb-2" style="min-width:220px;">
+                <label for="ddm_growth_rate" class="form-label w-100 text-center">Dividend Growth Rate (%)
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Dividend Growth Rate" data-bs-content="Annualized dividend growth rate for DDM. Accepts 0-20%. Typical: 3-8%.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="ddm_growth_rate" name="ddm_growth_rate" value="5.0" min="0" max="20" step="0.1">
+              </div>
+              <div class="col-lg-4 col-md-6 mb-2" style="min-width:220px;">
+                <label for="ddm_discount_rate" class="form-label w-100 text-center">Discount Rate (%)
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Discount Rate" data-bs-content="Rate used to discount future dividends to present value. Accepts 3-15%. Typical: 6-9%.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="ddm_discount_rate" name="ddm_discount_rate" value="7.0" min="3" max="15" step="0.1">
+              </div>
+              <div class="col-lg-4 col-md-6 mb-2" style="min-width:220px;">
+                <label for="ddm_projection_years" class="form-label w-100 text-center">Projection Years
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Projection Years (DDM)" data-bs-content="Number of years to project dividends before terminal value. Accepts 3-10.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="ddm_projection_years" name="ddm_projection_years" value="5" min="3" max="10">
+              </div>
+            </div>
+            
+            <!-- P/E Parameters -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <h5 class="mb-3"><strong>P/E Analysis</strong></h5>
+              </div>
+              <div class="col-lg-6 col-md-6 mb-2" style="min-width:220px;">
+                <div class="form-check d-flex flex-column align-items-center">
+                  <input class="form-check-input" type="checkbox" id="pe_use_forward" name="pe_use_forward" checked>
+                  <label class="form-check-label" for="pe_use_forward">
+                    Use Forward P/E
+                  </label>
+                </div>
+              </div>
+              <div class="col-lg-6 col-md-6 mb-2" style="min-width:220px;">
+                <div class="form-check d-flex flex-column align-items-center">
+                  <input class="form-check-input" type="checkbox" id="pe_use_sector_premium" name="pe_use_sector_premium" checked>
+                  <label class="form-check-label" for="pe_use_sector_premium">
+                    Apply Sector Premium
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <!-- General Parameters -->
+            <div class="row mb-4">
+              <div class="col-12">
+                <h5 class="mb-3"><strong>General Settings</strong></h5>
+              </div>
+              <div class="col-lg-4 col-md-6 mb-2" style="min-width:220px;">
+                <label for="general_discount_rate" class="form-label w-100 text-center">Base Discount Rate (%)
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Base Discount Rate" data-bs-content="Default discount rate for all models unless overridden. Accepts 5-15%.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="general_discount_rate" name="general_discount_rate" value="8.0" min="5" max="15" step="0.1">
+              </div>
+              <div class="col-lg-4 col-md-6 mb-2" style="min-width:220px;">
+                <label for="general_terminal_growth" class="form-label w-100 text-center">Base Terminal Growth (%)
+                  <sup>
+                    <a tabindex="0" role="button" data-bs-toggle="popover" data-bs-trigger="focus" title="Base Terminal Growth" data-bs-content="Default perpetual growth rate for terminal value. Accepts 0-5%.">
+                      <i class="fas fa-info-circle"></i>
+                    </a>
+                  </sup>
+                </label>
+                <input type="number" class="form-control form-control-lg" id="general_terminal_growth" name="general_terminal_growth" value="2.0" min="0" max="5" step="0.1">
+              </div>
+              <div class="col-lg-4 col-md-6 mb-2" style="min-width:220px;">
+                <div class="form-check mt-4 d-flex flex-column align-items-center">
+                  <input class="form-check-input" type="checkbox" id="use_enhanced_models" name="use_enhanced_models" checked>
+                  <label class="form-check-label" for="use_enhanced_models">
+                    Use Enhanced Models
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="text-end">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetParameters()">Reset to Defaults</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </form>
 
@@ -163,17 +324,10 @@
     {% else %}
       <pre class="center-table">{{ data | tojson(indent=2) }}</pre>
     {% endif %}
-  {% elif stock %}
-    <p class="center-header">No data available for {{ stock.ticker }}.</p>
+
   {% endif %}
 
   {% if analysis %}
-  <div class="mt-4">
-      <div class="alert alert-info">
-          <strong>Debug Info:</strong> Analysis data received for {{ analysis.basic_info.ticker if analysis.basic_info else 'Unknown' }}
-      </div>
-  </div>
-
   <div class="mt-4">
       <h3 class="text-center">📊 Stock Analysis Results for {{ analysis.basic_info.ticker if analysis.basic_info else ticker }}</h3>
       
@@ -321,12 +475,46 @@
       </div>
       {% endif %}
   </div>
-  {% else %}
-  <!-- Debug: No analysis data received -->
-  <div class="mt-4" style="display: none;">
-      <div class="alert alert-warning">
-          Debug: No analysis data in template context
-      </div>
-  </div>
   {% endif %}
+
+  <script>
+  function resetParameters() {
+      // Reset DCF parameters
+      document.getElementById('dcf_years').value = '12';
+      document.getElementById('dcf_fade_years').value = '8';
+      document.getElementById('dcf_terminal_g').value = '4.0';
+      document.getElementById('dcf_forward_uplift').value = '10.0';
+      
+      // Reset DDM parameters
+      document.getElementById('ddm_growth_rate').value = '5.0';
+      document.getElementById('ddm_discount_rate').value = '7.0';
+      document.getElementById('ddm_projection_years').value = '5';
+      
+      // Reset P/E parameters
+      document.getElementById('pe_use_forward').checked = true;
+      document.getElementById('pe_use_sector_premium').checked = true;
+      
+      // Reset general parameters
+      document.getElementById('general_discount_rate').value = '8.0';
+      document.getElementById('general_terminal_growth').value = '2.0';
+      document.getElementById('use_enhanced_models').checked = true;
+  }
+  function setAnalysisParamsExpanded() {
+      document.getElementById('analysisParams_expanded').value = 'true';
+  }
+  // On page load, if the collapse is open, set the hidden input
+  document.addEventListener('DOMContentLoaded', function() {
+      var params = document.getElementById('analysisParams');
+      if (params && params.classList.contains('show')) {
+          document.getElementById('analysisParams_expanded').value = 'true';
+      }
+  });
+  // Enable Bootstrap popovers
+  document.addEventListener('DOMContentLoaded', function() {
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.forEach(function (popoverTriggerEl) {
+      new bootstrap.Popover(popoverTriggerEl, { trigger: 'click' });
+    });
+  });
+  </script>
 {% endblock %}
