@@ -1,3 +1,7 @@
+# PROJECT TITLE
+#### Video Demo:  https://youtu.be/XgQURtIpZKw
+#### Description: Magic Beans is a comprehensive web-based stock analysis platform built with Flask, developed as a final project for CS50's Introduction to Computer Science. It provides real-time financial data, multiple valuation models (DCF, DDM, P/E), and an intuitive interface for educational and research purposes. The project demonstrates advanced programming concepts, object-oriented design, API integration, and thorough testing, making it a valuable learning tool for both finance and software development.
+
 # Magic Beans - Stock Analysis Platform
 
 A comprehensive web-based stock analysis platform built with Flask for educational and research purposes. This project was developed as a final project for CS50's Introduction to Computer Science course.
