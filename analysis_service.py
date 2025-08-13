@@ -198,8 +198,19 @@ class ComprehensiveAnalysisService:
         self.stock_analyzer = None
         self.analysis_results = {}
     
-    def analyze_stock(self):
-        """Perform comprehensive stock analysis"""
+    def analyze_stock(self, user_params=None):
+        """Perform comprehensive stock analysis with optional user-defined parameters"""
+        # Set default parameters if none provided
+        if user_params is None:
+            user_params = {
+                'dcf_params': {'years': 12, 'fade_years': 8, 'terminal_g': 0.04, 'forward_uplift': 0.10},
+                'ddm_params': {'growth_rate': 0.05, 'discount_rate': 0.07, 'projection_years': 5},
+                'pe_params': {'use_forward': True, 'use_sector_premium': True},
+                'general_params': {'discount_rate': 0.08, 'terminal_growth': 0.02, 'use_enhanced_models': True}
+            }
+        
+        # Store parameters for later use
+        self.user_params = user_params
         # Create StockAnalysis instance
         self.stock_analyzer = StockAnalysis(self.ticker)
         
@@ -219,7 +230,7 @@ class ComprehensiveAnalysisService:
         self._analyze_valuations(current_price)
         self._analyze_recommendations()
         self._analyze_consensus()
-        self._analyze_technical()
+        self._analyze_investment_summary()
         self._finalize_analysis()
         
         return self.analysis_results
@@ -275,21 +286,32 @@ class ComprehensiveAnalysisService:
         }
     
     def _analyze_valuations(self, current_price):
-        """Perform valuation analysis (DCF, P/E, DDM)"""
+        """Perform valuation analysis (DCF, P/E, DDM) with user-defined parameters"""
         valuations = []
+        
+        # Get user parameters
+        dcf_params = self.user_params.get('dcf_params', {})
+        ddm_params = self.user_params.get('ddm_params', {})
+        pe_params = self.user_params.get('pe_params', {})
+        general_params = self.user_params.get('general_params', {})
         
         # Determine if hypergrowth and run appropriate analysis
         is_hypergrowth = self.stock_analyzer._identify_hypergrowth_company()
         self.analysis_results['is_hypergrowth'] = is_hypergrowth
         
-        # DCF Analysis
+        # DCF Analysis with user parameters
         try:
             if is_hypergrowth:
                 self.stock_analyzer.evaluate_hypergrowth_stock()
                 dcf_value = self.stock_analyzer._last_results.get('hypergrowth_valuation')
                 analysis_type = 'Hypergrowth'
             else:
-                dcf_value = self.stock_analyzer.evaluate_DCF()
+                dcf_value = self.stock_analyzer.evaluate_DCF(
+                    years=dcf_params.get('years', 12),
+                    fade_years=dcf_params.get('fade_years', 8),
+                    terminal_g=dcf_params.get('terminal_g', 0.04),
+                    forward_uplift=dcf_params.get('forward_uplift', 0.10)
+                )
                 analysis_type = 'Traditional DCF'
             
             if dcf_value:
@@ -306,9 +328,12 @@ class ComprehensiveAnalysisService:
         except Exception as e:
             print(f"DCF analysis error: {e}")
         
-        # P/E Analysis
+        # P/E Analysis with user parameters
         try:
-            pe_result = self.stock_analyzer.evaluate_PE()
+            pe_result = self.stock_analyzer.evaluate_PE(
+                use_forward=pe_params.get('use_forward', True),
+                use_sector_premium=pe_params.get('use_sector_premium', True)
+            )
             if pe_result and pe_result.get('fair_value_justified'):
                 pe_value = pe_result['fair_value_justified']
                 upside = self.formatter.calculate_safe_upside(pe_value, current_price)
@@ -324,9 +349,15 @@ class ComprehensiveAnalysisService:
         except Exception as e:
             print(f"P/E analysis error: {e}")
         
-        # DDM Analysis
+        # DDM Analysis with user parameters
         try:
-            ddm_value = self.stock_analyzer.evaluate_DDM()
+            # Pass custom DDM parameters to the evaluate_DDM method
+            ddm_value = self.stock_analyzer.evaluate_DDM(
+                use_enhanced_model=general_params.get('use_enhanced_models', True),
+                custom_growth_rate=ddm_params.get('growth_rate'),
+                custom_discount_rate=ddm_params.get('discount_rate'),
+                custom_projection_years=ddm_params.get('projection_years')
+            )
             if ddm_value:
                 upside = self.formatter.calculate_safe_upside(ddm_value, current_price)
                 print(f"DDM: value={ddm_value}, current_price={current_price}, upside={upside}")
@@ -405,36 +436,95 @@ class ComprehensiveAnalysisService:
             print(f"Analyst analysis error: {e}")
             self.analysis_results['analyst_consensus'] = None
     
-    def _analyze_technical(self):
-        """Analyze technical indicators"""
+    def _analyze_investment_summary(self):
+        """Create an aggregated investment summary with key insights"""
         try:
-            self.stock_analyzer.calculate_moving_averages()
-            ma_result = self.stock_analyzer.get_last_moving_averages()
-            if ma_result:
-                self.analysis_results['technical_analysis'] = {
-                    'trend_50': ma_result.get('trend_50', 'N/A'),
-                    'trend_200': ma_result.get('trend_200', 'N/A'),
-                    'overall_trend': ma_result.get('overall_trend', 'N/A'),
-                    'ma_50_pct': ma_result.get('ma_50_pct', 0),
-                    'ma_200_pct': ma_result.get('ma_200_pct', 0),
-                    'ma_50_formatted': self.formatter.format_percentage(ma_result.get('ma_50_pct', 0)),
-                    'ma_200_formatted': self.formatter.format_percentage(ma_result.get('ma_200_pct', 0)),
-                    'ma_50_class': 'text-success' if ma_result.get('trend_50') == 'Above' else 'text-danger',
-                    'ma_200_class': 'text-success' if ma_result.get('trend_200') == 'Above' else 'text-danger',
-                    'overall_class': 'text-success' if 'Uptrend' in str(ma_result.get('overall_trend', '')) else 'text-danger' if 'Downtrend' in str(ma_result.get('overall_trend', '')) else 'text-warning'
-                }
+            # Get basic info and current analysis results
+            basic_info = self.analysis_results.get('basic_info', {})
+            valuations = self.analysis_results.get('valuations', [])
+            current_price = basic_info.get('current_price', 0)
+            ma_50 = basic_info.get('ma_50', 0)
+            ma_200 = basic_info.get('ma_200', 0)
+            
+            summary = {}
+            
+            # Moving average position analysis
+            if current_price and ma_50 and ma_200:
+                ma_position_parts = []
+                
+                # Analyze 50-day MA
+                ma_50_diff_pct = ((current_price - ma_50) / ma_50) * 100
+                if ma_50_diff_pct > 2:
+                    ma_position_parts.append(f"Above 50-day MA ({ma_50_diff_pct:+.1f}%)")
+                elif ma_50_diff_pct < -2:
+                    ma_position_parts.append(f"Below 50-day MA ({ma_50_diff_pct:+.1f}%)")
+                else:
+                    ma_position_parts.append(f"Near 50-day MA ({ma_50_diff_pct:+.1f}%)")
+                
+                # Analyze 200-day MA
+                ma_200_diff_pct = ((current_price - ma_200) / ma_200) * 100
+                if ma_200_diff_pct > 2:
+                    ma_position_parts.append(f"above 200-day MA ({ma_200_diff_pct:+.1f}%)")
+                elif ma_200_diff_pct < -2:
+                    ma_position_parts.append(f"below 200-day MA ({ma_200_diff_pct:+.1f}%)")
+                else:
+                    ma_position_parts.append(f"near 200-day MA ({ma_200_diff_pct:+.1f}%)")
+                
+                summary['ma_position'] = " and ".join(ma_position_parts)
+                
+                # Overall trend assessment
+                if ma_50_diff_pct > 5 and ma_200_diff_pct > 5:
+                    summary['trend_description'] = "Strong uptrend"
+                elif ma_50_diff_pct > 0 and ma_200_diff_pct > 0:
+                    summary['trend_description'] = "Uptrend"
+                elif ma_50_diff_pct < -5 and ma_200_diff_pct < -5:
+                    summary['trend_description'] = "Strong downtrend"
+                elif ma_50_diff_pct < 0 and ma_200_diff_pct < 0:
+                    summary['trend_description'] = "Downtrend"
+                else:
+                    summary['trend_description'] = "Mixed/Sideways"
             else:
-                self.analysis_results['technical_analysis'] = None
+                summary['ma_position'] = "Moving average data not available"
+            
+            # Valuation summary
+            if valuations:
+                valid_valuations = [v for v in valuations if v.get('value') and v.get('upside') is not None]
+                
+                if valid_valuations:
+                    avg_upside = sum(v['upside'] for v in valid_valuations) / len(valid_valuations)
+                    
+                    if avg_upside > 20:
+                        summary['valuation_summary'] = f"Significantly undervalued (avg {avg_upside:+.1f}% upside)"
+                        summary['upside_summary'] = "High upside potential"
+                    elif avg_upside > 10:
+                        summary['valuation_summary'] = f"Undervalued (avg {avg_upside:+.1f}% upside)"
+                        summary['upside_summary'] = "Moderate upside potential"
+                    elif avg_upside > -10:
+                        summary['valuation_summary'] = f"Fairly valued (avg {avg_upside:+.1f}%)"
+                        summary['upside_summary'] = "Limited upside/downside"
+                    elif avg_upside > -20:
+                        summary['valuation_summary'] = f"Overvalued (avg {avg_upside:+.1f}% downside)"
+                        summary['upside_summary'] = "Moderate downside risk"
+                    else:
+                        summary['valuation_summary'] = f"Significantly overvalued (avg {avg_upside:+.1f}% downside)"
+                        summary['upside_summary'] = "High downside risk"
+                else:
+                    summary['valuation_summary'] = "Unable to determine fair value"
+            else:
+                summary['valuation_summary'] = "Valuation analysis unavailable"
+            
+            self.analysis_results['investment_summary'] = summary
+            
         except Exception as e:
-            print(f"Technical analysis error: {e}")
-            self.analysis_results['technical_analysis'] = None
+            print(f"Investment summary error: {e}")
+            self.analysis_results['investment_summary'] = None
     
     def _finalize_analysis(self):
         """Add final debug information and summary"""
         valuations = self.analysis_results['valuations']
         our_recommendation = self.analysis_results['our_recommendation']
         analyst_consensus = self.analysis_results['analyst_consensus']
-        ma_result = self.analysis_results['technical_analysis']
+        investment_summary = self.analysis_results['investment_summary']
         
         # Debug print to see what we're sending
         print(f"Analysis results for {self.ticker}:")
@@ -444,5 +534,5 @@ class ComprehensiveAnalysisService:
             print(f"    {i+1}. {val['method']}: value={val['value']}, upside={val['upside']}")
         print(f"  Recommendation: {our_recommendation}")
         print(f"  Analyst consensus: {analyst_consensus is not None}")
-        print(f"  Technical analysis: {ma_result is not None}")
+        print(f"  Investment summary: {investment_summary is not None}")
         print(f"  Analysis completed successfully")

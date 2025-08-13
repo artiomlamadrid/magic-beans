@@ -334,7 +334,7 @@
       <!-- Basic Information Card -->
       <div class="card mb-3">
           <div class="card-header">
-              <h5 class="mb-0">Market Overview</h5>
+              <h5 class="mb-0">General Overview</h5>
           </div>
           <div class="card-body">
               {% if analysis.basic_info %}
@@ -400,20 +400,57 @@
           </div>
       </div>
 
-      <!-- Recommendations Card -->
+      <!-- Investment Summary Card -->
       <div class="card mb-3">
           <div class="card-header">
-              <h5 class="mb-0">Investment Recommendations</h5>
+              <h5 class="mb-0">Investment Summary</h5>
           </div>
           <div class="card-body">
+              {% if analysis.investment_summary %}
               <div class="row">
                   <div class="col-md-6">
-                      <h6>Our Analysis</h6>
-                      <span class="badge badge-{{ analysis.recommendation_class }} badge-lg p-2">
-                          {{ analysis.our_recommendation }}
-                      </span>
+                      <h6>Technical Position</h6>
+                      <p class="mb-2">
+                          <strong>Relative to Moving Averages:</strong><br>
+                          {{ analysis.investment_summary.ma_position }}
+                      </p>
+                      {% if analysis.investment_summary.trend_description %}
+                      <p class="mb-2">
+                          <strong>Trend:</strong> {{ analysis.investment_summary.trend_description }}
+                      </p>
+                      {% endif %}
+                  </div>
+                  <div class="col-md-6">
+                      <h6>Valuation Assessment</h6>
+                      {% if analysis.investment_summary.valuation_summary %}
+                      <p class="mb-2">
+                          <strong>Fair Value Assessment:</strong><br>
+                          {{ analysis.investment_summary.valuation_summary }}
+                      </p>
+                      {% endif %}
+                      {% if analysis.investment_summary.upside_summary %}
+                      <p class="mb-2">
+                          <strong>Potential:</strong> {{ analysis.investment_summary.upside_summary }}
+                      </p>
+                      {% endif %}
+                  </div>
+              </div>
+              
+              <div class="row mt-3">
+                  <div class="col-md-6">
                       {% if analysis.is_hypergrowth %}
-                      <p class="mt-2"><small class="text-info"><i class="fas fa-rocket"></i> Analyzed using Hypergrowth Framework</small></p>
+                      <p class="mt-2">
+                          <small class="text-warning">
+                              <strong>Hypergrowth Analysis:</strong> This company shows characteristics of rapid growth, 
+                              so valuation models may be less reliable than for mature companies.
+                          </small>
+                      </p>
+                      {% else %}
+                      <p class="mt-2">
+                          <small class="text-muted">
+                              Standard valuation models applied - suitable for mature company analysis.
+                          </small>
+                      </p>
                       {% endif %}
                   </div>
                   <div class="col-md-6">
@@ -435,36 +472,13 @@
                       {% endif %}
                   </div>
               </div>
+              {% else %}
+              <p class="text-muted">Unable to generate investment summary - insufficient data.</p>
+              {% endif %}
           </div>
       </div>
 
-      <!-- Technical Analysis Card -->
-      {% if analysis.technical_analysis %}
-      <div class="card mb-3">
-          <div class="card-header">
-              <h5 class="mb-0">Technical Analysis</h5>
-          </div>
-          <div class="card-body">
-              <div class="row">
-                  <div class="col-md-4">
-                      <p><strong>50-Day MA Difference ($):</strong><br>
-                          {{ analysis.technical_analysis.ma_50_formatted }}
-                      </p>
-                  </div>
-                  <div class="col-md-4">
-                      <p><strong>200-Day MA Difference ($):</strong><br>
-                          {{ analysis.technical_analysis.ma_200_formatted }}
-                      </p>
-                  </div>
-                  <div class="col-md-4">
-                      <p><strong>Overall Trend:</strong><br>
-                          {{ analysis.technical_analysis.overall_trend }}
-                      </p>
-                  </div>
-              </div>
-          </div>
-      </div>
-      {% endif %}
+
   </div>
   {% endif %}
 
