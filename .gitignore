@@ -326,3 +326,5 @@ __marimo__/
 
 # Data
 stocks/magic_beans.db
+magic_beans.db
+*.DS_Store
