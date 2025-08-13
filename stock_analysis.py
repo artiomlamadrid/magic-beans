@@ -132,12 +132,15 @@ class StockAnalysis(Stock):
 
     # --- Traditional Valuation Methods ---
 
-    def evaluate_DDM(self, use_enhanced_model=True):
+    def evaluate_DDM(self, use_enhanced_model=True, custom_growth_rate=None, custom_discount_rate=None, custom_projection_years=None):
         """
         Enhanced Dividend Discount Model with buyback and capital appreciation components.
         
         Args:
             use_enhanced_model (bool): Whether to include buyback yield in valuation
+            custom_growth_rate (float): Custom dividend growth rate (optional)
+            custom_discount_rate (float): Custom discount rate (optional)  
+            custom_projection_years (int): Custom projection period (optional)
             
         Returns:
             dict: DDM analysis results including target prices for different scenarios
@@ -185,10 +188,23 @@ class StockAnalysis(Stock):
                 if current_price > 0 and eps > 0:
                     earnings_growth = info.get("earningsGrowth") or info.get("revenueGrowth") or median_div_growth
                     earnings_growth = max(0.06, min(earnings_growth, 0.15))
-                    dividend_growth = max(median_div_growth, min(earnings_growth * 0.8, 0.10))
+                    
+                    # Use custom parameters if provided
+                    if custom_growth_rate is not None:
+                        dividend_growth = custom_growth_rate
+                    else:
+                        dividend_growth = max(median_div_growth, min(earnings_growth * 0.8, 0.10))
+                    
                     payout_ratio = info.get("payoutRatio") or min(last_div / eps, 0.7) if eps > 0 else 0.25
-                    required_return = max(self.discount_rate, 0.065)
-                    stage1_years = 7
+                    
+                    # Use custom discount rate if provided
+                    if custom_discount_rate is not None:
+                        required_return = max(custom_discount_rate, 0.05)
+                    else:
+                        required_return = max(self.discount_rate, 0.065)
+                    
+                    # Use custom projection years if provided
+                    stage1_years = custom_projection_years if custom_projection_years is not None else 7
                     stage1_growth = min(dividend_growth, 0.06)  # Lowered to 6%
                     stage2_growth = max(0.04, min(stage1_growth * 0.65, 0.04))  # Set to 4%
 

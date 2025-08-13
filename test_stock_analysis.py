@@ -265,9 +265,18 @@ class TestStockAnalysis(unittest.TestCase):
                      patch.object(self.stock_analysis, 'market_implied_growth_DCF', return_value=0.12), \
                      patch.object(self.stock_analysis, 'data_quality_summary', return_value={'quality': 'good'}):
                     self.stock_analysis.export_analysis()
-                    # Check for filename in the console output or use a fallback
-                    filename = self.stock_analysis._last_results.get("exported_filename") or self.stock_analysis._last_results.get("filename") or f"{self.test_ticker}_analysis_20250812.json"
-                    self.assertTrue(os.path.exists(filename))
+                    
+                    # Find the exported file using current date
+                    import glob
+                    from datetime import datetime
+                    today = datetime.now().strftime("%Y%m%d")
+                    pattern = f"{self.test_ticker}_analysis_{today}.json"
+                    files = glob.glob(pattern)
+                    
+                    # Should find at least one file
+                    self.assertTrue(len(files) > 0, f"No file found matching pattern {pattern}")
+                    filename = files[0]
+                    
                     # Verify the file contains valid JSON
                     with open(filename, 'r') as f:
                         data = json.load(f)

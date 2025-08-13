@@ -1,0 +1,225 @@
+{% extends "layout.html" %}
+
+{% block title %}About Magic Beans{% endblock %}
+
+{% block main %}
+<div class="container">
+    <h1 class="text-center mb-4">About Magic Beans</h1>
+    <p class="lead text-center">A comprehensive stock analysis platform for educational and research purposes</p>
+    
+    <hr class="my-5">
+    
+    <!-- Project Overview -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2>Project Overview</h2>
+            <p>Magic Beans is a web-based stock analysis platform built with Flask that provides comprehensive financial analysis tools for educational and research purposes. The application leverages real-time data from Yahoo Finance to perform sophisticated valuation calculations and present them in an intuitive, user-friendly interface.</p>
+            
+            <p>This project was developed as a final project for CS50's Introduction to Computer Science course, demonstrating advanced programming concepts including object-oriented design, web development, data analysis, and comprehensive testing methodologies.</p>
+        </div>
+    </div>
+
+    <!-- Core Features -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2>Core Features</h2>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5><i class="fas fa-chart-line text-primary"></i> Real-Time Data Fetching</h5>
+                    <p>Direct integration with Yahoo Finance API to fetch live financial data including stock prices, financial statements, and market metrics.</p>
+                    
+                    <h5><i class="fas fa-calculator text-success"></i> Advanced Valuation Models</h5>
+                    <p>Implementation of multiple valuation methodologies including DCF, DDM, and P/E analysis with customizable parameters.</p>
+                </div>
+                <div class="col-md-6">
+                    <h5><i class="fas fa-database text-info"></i> Data Management</h5>
+                    <p>Save and load functionality for offline analysis and comparison of historical data points.</p>
+                    
+                    <h5><i class="fas fa-cogs text-warning"></i> Configurable Analysis</h5>
+                    <p>User-adjustable parameters for discount rates, growth assumptions, and projection periods to suit different analysis scenarios.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2>How It Works</h2>
+            
+            <h4>1. Data Acquisition</h4>
+            <p>Magic Beans uses the <code>yfinance</code> Python library to fetch real-time financial data from Yahoo Finance. The application can retrieve:</p>
+            <ul>
+                <li><strong>Basic Information:</strong> Current price, market cap, sector, industry details</li>
+                <li><strong>Financial Statements:</strong> Balance sheets, income statements, cash flow statements</li>
+                <li><strong>Market Data:</strong> Historical prices, dividends, stock splits</li>
+                <li><strong>Analyst Data:</strong> Earnings estimates, recommendations, target prices</li>
+            </ul>
+
+            <h4>2. Data Storage & Management</h4>
+            <p>The application provides flexible data management capabilities:</p>
+            <ul>
+                <li><strong>Save Function:</strong> Stores fetched data as JSON files in the <code>saved_data/</code> directory for offline access</li>
+                <li><strong>Load Function:</strong> Retrieves previously saved data for analysis without requiring new API calls</li>
+                <li><strong>Export Function:</strong> Converts data to CSV format for external analysis tools</li>
+            </ul>
+
+            <h4>3. Financial Analysis Engine</h4>
+            <p>The core analysis engine implements multiple valuation models:</p>
+            
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><strong>Discounted Cash Flow (DCF) Model</strong></h5>
+                </div>
+                <div class="card-body">
+                    <p>Projects future free cash flows and discounts them to present value using the company's weighted average cost of capital (WACC).</p>
+                    <ul>
+                        <li><strong>Projection Period:</strong> 5-20 years (default: 12 years)</li>
+                        <li><strong>Fade Period:</strong> 3-15 years for growth normalization (default: 8 years)</li>
+                        <li><strong>Terminal Growth:</strong> 0-10% perpetual growth rate (default: 4%)</li>
+                        <li><strong>Discount Rate:</strong> Based on industry risk and company characteristics</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><strong>Dividend Discount Model (DDM)</strong></h5>
+                </div>
+                <div class="card-body">
+                    <p>Values the company based on the present value of expected future dividend payments.</p>
+                    <ul>
+                        <li><strong>Dividend Growth Rate:</strong> 0-20% based on historical patterns (default: 4%)</li>
+                        <li><strong>Required Return:</strong> 3-15% investor return expectation (default: 8%)</li>
+                        <li><strong>Projection Period:</strong> 3-10 years (default: 6 years)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5><strong>Price-to-Earnings (P/E) Analysis</strong></h5>
+                </div>
+                <div class="card-body">
+                    <p>Compares the company's valuation to industry peers using earnings multiples.</p>
+                    <ul>
+                        <li><strong>Forward vs. Trailing P/E:</strong> User-selectable preference</li>
+                        <li><strong>Sector Premium:</strong> Adjustments for sector-specific characteristics</li>
+                        <li><strong>Peer Comparison:</strong> Industry average multiple analysis</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2>Technical Architecture</h2>
+            
+            <h4>Backend Components</h4>
+            <ul>
+                <li><strong>Flask Application (<code>app.py</code>):</strong> Web framework handling HTTP requests and routing</li>
+                <li><strong>Stock Class (<code>stock.py</code>):</strong> Data fetching and management using yfinance API</li>
+                <li><strong>StockAnalysis Class (<code>stock_analysis.py</code>):</strong> Core valuation algorithms and calculations</li>
+                <li><strong>Analysis Services (<code>analysis_service.py</code>):</strong> Business logic layer with formatting and orchestration</li>
+                <li><strong>Helper Functions (<code>helpers.py</code>):</strong> Utility functions for data processing</li>
+            </ul>
+
+            <h4>Frontend Components</h4>
+            <ul>
+                <li><strong>Bootstrap 5:</strong> Responsive CSS framework for modern UI design</li>
+                <li><strong>Jinja2 Templates:</strong> Server-side rendering with minimal client-side logic</li>
+                <li><strong>Interactive Forms:</strong> Parameter configuration with real-time validation</li>
+                <li><strong>Data Visualization:</strong> Clean tabular presentation of financial data</li>
+            </ul>
+
+            <h4>Testing Infrastructure</h4>
+            <ul>
+                <li><strong>Unit Tests:</strong> 153 comprehensive tests covering all major functionality</li>
+                <li><strong>Mock Testing:</strong> Isolated testing of components without external API dependencies</li>
+                <li><strong>Error Handling:</strong> Extensive testing of edge cases and failure scenarios</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Usage Workflow -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2>Usage Workflow</h2>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5><i class="fas fa-search fa-2x text-primary mb-3"></i></h5>
+                            <h5>1. Enter Ticker</h5>
+                            <p>Input any valid stock ticker symbol (e.g., AAPL, MSFT, TSLA)</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5><i class="fas fa-cog fa-2x text-success mb-3"></i></h5>
+                            <h5>2. Configure Analysis</h5>
+                            <p>Adjust valuation parameters or use intelligent defaults</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5><i class="fas fa-chart-bar fa-2x text-info mb-3"></i></h5>
+                            <h5>3. Review Results</h5>
+                            <p>Analyze comprehensive valuation results and investment insights</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Educational Value -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <h2>Educational Value</h2>
+            <p>Magic Beans serves as both a practical tool and educational resource, demonstrating:</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Programming Concepts</h5>
+                    <ul>
+                        <li>Object-oriented design patterns</li>
+                        <li>Web application development</li>
+                        <li>API integration and data processing</li>
+                        <li>Test-driven development</li>
+                        <li>Error handling and validation</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h5>Financial Concepts</h5>
+                    <ul>
+                        <li>Fundamental analysis techniques</li>
+                        <li>Valuation model implementation</li>
+                        <li>Risk assessment methodologies</li>
+                        <li>Market data interpretation</li>
+                        <li>Investment decision frameworks</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="row">
+        <div class="col-12 text-center">
+            <hr>
+            <p class="text-muted">
+                <small>
+                    Magic Beans is an educational project and should not be used as the sole basis for investment decisions. 
+                    Always consult with qualified financial professionals before making investment choices.
+                </small>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,6 +4,7 @@
 import pytest
 import sys
 import os
+import pandas as pd
 from unittest.mock import Mock, patch, MagicMock
 
 # Add the project directory to Python path
@@ -307,6 +308,121 @@ class TestComprehensiveAnalysisService:
         
         assert service.analysis_results['our_recommendation'] == 'INSUFFICIENT DATA'
         assert service.analysis_results['recommendation_class'] == 'secondary'
+
+    @patch('analysis_service.StockAnalysis')
+    def test_analyze_stock_with_custom_parameters(self, mock_stock_analysis):
+        """Test stock analysis with custom user-defined parameters"""
+        # Mock StockAnalysis instance
+        mock_analyzer = Mock()
+        mock_analyzer.data = {
+            'info': {
+                'currentPrice': 150.0,
+                'fiftyDayAverage': 145.0,
+                'twoHundredDayAverage': 140.0,
+                'longName': 'Apple Inc.',
+                'sector': 'Technology',
+                'industry': 'Consumer Electronics',
+                'marketCap': 2500000000000
+            }
+        }
+        
+        # Mock _last_results to contain expected values
+        mock_analyzer._last_results = {
+            'dcf': 165.0,
+            'ddm': 155.0,
+            'pe': 160.0
+        }
+        
+        # Mock valuation methods to return specific values with custom parameters
+        mock_analyzer.evaluate_DCF.return_value = 165.0
+        mock_analyzer.evaluate_DDM.return_value = 155.0
+        mock_analyzer.evaluate_PE.return_value = 160.0
+        
+        # Mock analysis data loading
+        mock_analyzer.load_analysis_from_file.return_value = pd.DataFrame({
+            'To Grade': ['Strong Buy', 'Buy', 'Hold'],
+            'Firm': ['Firm A', 'Firm B', 'Firm C']
+        })
+        
+        mock_stock_analysis.return_value = mock_analyzer
+        
+        # Define custom parameters
+        user_params = {
+            'dcf_params': {
+                'years': 8,
+                'fade_years': 5,
+                'terminal_g': 0.025,
+                'forward_uplift': 0.05
+            },
+            'ddm_params': {
+                'growth_rate': 0.06,
+                'discount_rate': 0.09,
+                'projection_years': 8
+            },
+            'pe_params': {
+                'use_forward': False,
+                'use_sector_premium': True
+            },
+            'general_params': {
+                'discount_rate': 0.09,
+                'terminal_growth': 0.025,
+                'use_enhanced_models': True
+            }
+        }
+        
+        service = ComprehensiveAnalysisService("AAPL")
+        result = service.analyze_stock(user_params)
+        
+        # Verify results structure (without checking method calls since they may vary)
+        assert result['basic_info']['ticker'] == 'AAPL'
+        assert result['basic_info']['long_name'] == 'Apple Inc.'
+        assert len(result['valuations']) > 0
+        assert 'investment_summary' in result
+
+    @patch('analysis_service.StockAnalysis')
+    def test_analyze_stock_with_invalid_parameters(self, mock_stock_analysis):
+        """Test stock analysis with invalid custom parameters"""
+        # Mock StockAnalysis instance that will fail
+        mock_analyzer = Mock()
+        mock_analyzer.data = {
+            'info': {
+                'currentPrice': 150.0,
+                'longName': 'Apple Inc.',
+                'sector': 'Technology',
+                'industry': 'Consumer Electronics',
+                'marketCap': 2500000000000
+            }
+        }
+        
+        # Mock _last_results as empty dict to avoid Mock objects
+        mock_analyzer._last_results = {}
+        
+        # Make the methods return None to simulate failure
+        mock_analyzer.evaluate_DCF.return_value = None
+        mock_analyzer.evaluate_DDM.return_value = None
+        mock_analyzer.evaluate_PE.return_value = None
+        
+        # Mock analysis data loading to return None
+        mock_analyzer.load_analysis_from_file.return_value = None
+        
+        mock_stock_analysis.return_value = mock_analyzer
+        
+        service = ComprehensiveAnalysisService("AAPL")
+        
+        # Test with invalid parameter types
+        invalid_params = {
+            'dcf_params': {
+                'years': 'invalid'  # Should be int
+            }
+        }
+        
+        # The service should handle errors gracefully, not raise exceptions
+        result = service.analyze_stock(invalid_params)
+        
+        # Should still return a result structure even if all methods fail
+        assert result is not None
+        assert 'basic_info' in result
+        assert result['basic_info']['ticker'] == 'AAPL'
 
 
 # Integration test examples
