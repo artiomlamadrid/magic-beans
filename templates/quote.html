@@ -460,9 +460,7 @@
                   <div class="col-md-6">
                       <h6>Analyst Consensus</h6>
                       {% if analysis.analyst_consensus %}
-                      <span class="badge badge-secondary badge-lg p-2">
-                          {{ analysis.analyst_consensus.consensus }}
-                      </span>
+                      <p><strong>{{ analysis.analyst_consensus.consensus }}</strong></p>
                       <p class="mt-2">
                           <small>
                               Bullish: {{ analysis.analyst_consensus.bullish_formatted }} | 
