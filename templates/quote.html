@@ -55,7 +55,7 @@
         Configure Analysis Parameters
       </button>
       <input type="hidden" id="analysisParams_expanded" name="analysisParams_expanded" value="false">
-      <div class="collapse mt-3 {% if request.form.get('analysisParams_expanded') == 'true' %}show{% endif %}" id="analysisParams">
+      <div class="collapse mt-3" id="analysisParams">
         <div class="card">
           <div class="card-body">
             <h5 class="card-title mb-4"><strong>Valuation Model Parameters</strong></h5>
@@ -340,11 +340,16 @@
               {% if analysis.basic_info %}
                             <div class="row">
                   <div class="col-md-6">
+                      {% if analysis.basic_info.long_name %}
+                      <p><strong>Company:</strong> {{ analysis.basic_info.long_name }} ({{ analysis.basic_info.ticker }})</p>
+                      {% else %}
+                      <p><strong>Ticker:</strong> {{ analysis.basic_info.ticker }}</p>
+                      {% endif %}
                       <p><strong>Sector:</strong> {{ analysis.basic_info.sector }}</p>
                       <p><strong>Industry:</strong> {{ analysis.basic_info.industry }}</p>
-                      <p><strong>Market Cap:</strong> {{ analysis.basic_info.market_cap_formatted }}</p>
                   </div>
                   <div class="col-md-6">
+                      <p><strong>Market Cap:</strong> {{ analysis.basic_info.market_cap_formatted }}</p>
                       <p><strong>Current Price:</strong> {{ analysis.basic_info.current_price_formatted }}</p>
                       <p><strong>50-Day Average:</strong> {{ analysis.basic_info.ma_50_formatted }}</p>
                       <p><strong>200-Day Average:</strong> {{ analysis.basic_info.ma_200_formatted }}</p>
@@ -507,12 +512,9 @@
   function setAnalysisParamsExpanded() {
       document.getElementById('analysisParams_expanded').value = 'true';
   }
-  // On page load, if the collapse is open, set the hidden input
+  // On page load, reset the collapsed state (default should be collapsed)
   document.addEventListener('DOMContentLoaded', function() {
-      var params = document.getElementById('analysisParams');
-      if (params && params.classList.contains('show')) {
-          document.getElementById('analysisParams_expanded').value = 'true';
-      }
+      document.getElementById('analysisParams_expanded').value = 'false';
   });
   // Enable Bootstrap popovers
   document.addEventListener('DOMContentLoaded', function() {

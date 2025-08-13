@@ -273,6 +273,7 @@ class ComprehensiveAnalysisService:
         
         self.analysis_results['basic_info'] = {
             'ticker': self.ticker,
+            'long_name': info.get('longName', ''),
             'current_price': current_price,
             'current_price_formatted': self.formatter.format_currency(current_price),
             'ma_50': ma_50,
