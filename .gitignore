@@ -325,4 +325,4 @@ marimo/_lsp/
 __marimo__/
 
 # Data
-stocks/
+stocks/magic_beans.db
