@@ -1,11 +1,11 @@
-Flask
-pytz
-requests
-yfinance
-pytest
-Werkzeug
-matplotlib
-pandas
-pytest-mock
-pytest-cov
-pytest-asyncio
+# Core Dependencies
+Flask>=2.3.0
+pandas>=2.0.0
+numpy>=1.24.0
+yfinance>=0.2.0
+
+# Web Framework
+Werkzeug>=2.3.0
+
+# Date/Time handling (built into Python 3.9+)
+# datetime, json, os, sqlite3 are standard library
